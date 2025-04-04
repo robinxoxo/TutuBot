@@ -45,6 +45,7 @@ ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "warframe": {"name": "Warframe", "emoji": "🚀", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "apex": {"name": "Apex Legends", "emoji": "🅰️", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "valorant": {"name": "Valorant", "emoji": "🔥", "category": RoleCategory.MULTIPLAYER, "description": ""},
+    "marvel_rivals": {"name": "Marvel Rivals", "emoji": "🦸", "category": RoleCategory.MULTIPLAYER, "description": ""},
     
     # Nintendo Games - Default color (no color specified)
     "animal_crossing": {"name": "Animal Crossing", "emoji": "🍃", "category": RoleCategory.NINTENDO, "description": "New Horizons"},
