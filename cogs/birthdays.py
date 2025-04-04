@@ -99,9 +99,17 @@ class BirthdayDropdown(discord.ui.View):
         # Month selection callback
         async def month_callback(interaction: discord.Interaction):
             self.month = int(month_select.values[0])
-            await interaction.response.defer()
             # Update day dropdown based on month selection
             self.update_day_options()
+            
+            # Create a new view with updated options to refresh the UI
+            new_view = BirthdayDropdown(user_to_set=self.user_to_set, cog=self.cog)
+            new_view.month = self.month
+            new_view.day = self.day
+            new_view.update_day_options()
+            
+            # Update the message with the refreshed view
+            await interaction.response.edit_message(view=new_view)
         
         month_select.callback = month_callback
         self.add_item(month_select)
