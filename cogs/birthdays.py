@@ -33,13 +33,8 @@ class BirthdayMenuView(discord.ui.View):
     
     @discord.ui.button(label="Set My Birthday", style=discord.ButtonStyle.secondary, emoji="🎂")
     async def set_birthday_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Open the birthday selection dropdown."""
-        embed = discord.Embed(
-            title="🎂 Set Your Birthday",
-            description="Please select your birthday month and day using the dropdowns below.",
-            color=discord.Color.blue()
-        )
-        await interaction.response.edit_message(embed=embed, view=BirthdayDropdown(cog=self.cog))
+        """Open a modal to set birthday."""
+        await interaction.response.send_modal(BirthdayModal(self.cog))
     
     @discord.ui.button(label="View My Birthday", style=discord.ButtonStyle.secondary, emoji="📅")
     async def view_birthday_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -61,187 +56,49 @@ class BirthdayMenuView(discord.ui.View):
         """Show upcoming birthdays in the server."""
         await self.cog.show_server_birthdays(interaction)
 
-class BirthdayDropdown(discord.ui.View):
-    """View for birthday selection dropdowns."""
+class BirthdayModal(discord.ui.Modal, title="Set Your Birthday"):
+    """Modal for entering birthday information."""
     
-    def __init__(self, user_to_set: Optional[discord.Member] = None, cog: Optional['BirthdayCog'] = None):
-        """Initialize the dropdown view.
-        
-        Args:
-            user_to_set: The user to set the birthday for (if admin setting for someone else)
-            cog: The BirthdayCog instance (optional, for button navigation)
-        """
-        super().__init__(timeout=300)  # 5 minute timeout
-        self.month = None
-        self.day = None
-        self.user_to_set = user_to_set
+    date_input = discord.ui.TextInput(
+        label="Enter your birthday (MM-DD)",
+        placeholder="Example: 12-25 for December 25th",
+        min_length=3,
+        max_length=5,
+        required=True
+    )
+    
+    def __init__(self, cog: 'BirthdayCog', user_to_set: Optional[discord.Member] = None):
+        super().__init__(timeout=300)
         self.cog = cog
+        self.user_to_set = user_to_set
         
-        # Add month selector
-        month_select = discord.ui.Select(
-            placeholder="Select month",
-            options=[
-                discord.SelectOption(label="January", value="1"),
-                discord.SelectOption(label="February", value="2"),
-                discord.SelectOption(label="March", value="3"),
-                discord.SelectOption(label="April", value="4"),
-                discord.SelectOption(label="May", value="5"),
-                discord.SelectOption(label="June", value="6"),
-                discord.SelectOption(label="July", value="7"),
-                discord.SelectOption(label="August", value="8"),
-                discord.SelectOption(label="September", value="9"),
-                discord.SelectOption(label="October", value="10"),
-                discord.SelectOption(label="November", value="11"),
-                discord.SelectOption(label="December", value="12"),
-            ]
-        )
+    async def on_submit(self, interaction: discord.Interaction):
+        """Process the birthday submission."""
+        date_str = self.date_input.value
         
-        # Month selection callback
-        async def month_callback(interaction: discord.Interaction):
-            try:
-                self.month = int(month_select.values[0])
-                # Update day dropdown based on month selection
-                self.update_day_options()
-                
-                # Create a new view with updated options to refresh the UI
-                new_view = BirthdayDropdown(user_to_set=self.user_to_set, cog=self.cog)
-                new_view.month = self.month
-                new_view.day = self.day
-                new_view.update_day_options()
-                
-                # Update the message with the refreshed view
-                await interaction.response.edit_message(view=new_view)
-            except Exception as e:
-                log.error(f"Error in month_callback: {e}")
-                error_embed = discord.Embed(
-                    title="✗ Error",
-                    description="An error occurred while selecting the month. Please try again.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-        
-        month_select.callback = month_callback
-        self.add_item(month_select)
-        self.month_select = month_select
-        
-        # Add day selector with placeholder options
-        # Will be updated when month is selected
-        day_select = discord.ui.Select(
-            placeholder="Select day (select month first)",
-            disabled=True,
-            options=[discord.SelectOption(label="Select month first", value="0")]
-        )
-        
-        # Day selection callback
-        async def day_callback(interaction: discord.Interaction):
-            try:
-                selected_value = day_select.values[0]
-                
-                # Check if this is a range selection
-                if selected_value.startswith("range_"):
-                    # Parse the range
-                    range_parts = selected_value.replace("range_", "").split("_")
-                    start_day = int(range_parts[0])
-                    end_day = int(range_parts[1])
-                    
-                    # Create a new selection with specific days
-                    day_options = [
-                        discord.SelectOption(label=str(day), value=str(day))
-                        for day in range(start_day, end_day + 1)
-                    ]
-                    
-                    # Create a new view for day selection
-                    day_view = DaySelectionView(
-                        self.month, 
-                        day_options, 
-                        self.user_to_set, 
-                        self.cog
-                    )
-                    
-                    embed = discord.Embed(
-                        title="🎂 Select Day",
-                        description=f"Now select the specific day:",
-                        color=discord.Color.blue()
-                    )
-                    
-                    await interaction.response.edit_message(embed=embed, view=day_view)
-                    return
-                    
-                self.day = int(selected_value)
-                await interaction.response.defer()
-            except Exception as e:
-                log.error(f"Error in day_callback: {e}")
-                error_embed = discord.Embed(
-                    title="✗ Error",
-                    description="An error occurred while selecting the day. Please try again.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-        
-        day_select.callback = day_callback
-        self.add_item(day_select)
-        self.day_select = day_select
-    
-    def update_day_options(self):
-        """Update the day options based on the selected month."""
-        if not self.month:
-            return
-            
-        # Set days based on month
-        days_in_month = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Accounting for leap years
-        max_days = days_in_month[self.month]
-        
-        # Create day options - Discord only allows 25 options per select menu
-        # So we'll use day ranges to select days
-        if max_days > 25:
-            # For months with more than 25 days, create day ranges
-            day_options = [
-                discord.SelectOption(label=f"Day 1-10", value="range_1_10"),
-                discord.SelectOption(label=f"Day 11-20", value="range_11_20"),
-                discord.SelectOption(label=f"Day 21-{max_days}", value=f"range_21_{max_days}")
-            ]
-            
-            self.day_select.placeholder = f"Select day range (1-{max_days})"
-        else:
-            # For shorter months, we can show all days directly
-            day_options = [
-                discord.SelectOption(label=str(day), value=str(day))
-                for day in range(1, max_days + 1)
-            ]
-            self.day_select.placeholder = f"Select day (1-{max_days})"
-            
-        # Update the day select menu
-        self.day_select.options = day_options
-        self.day_select.disabled = False
-    
-    @discord.ui.button(label="Submit", style=discord.ButtonStyle.secondary)
-    async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Handle submission of the birthday."""
-        if not self.month or not self.day:
-            error_embed = discord.Embed(
-                title="✗ Selection Error",
-                description="Please select both month and day first!",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
-            return
-            
         try:
-            # Get the cog instance if not already provided
-            cog = self.cog
-            if not cog:
-                cog = interaction.client.get_cog("Birthdays")  # type: ignore
+            # Parse the birthday string
+            success, result = self.cog.parse_birthday(date_str)
             
-            if not cog:
+            if not success:
+                error_message = typing.cast(str, result)
                 error_embed = discord.Embed(
-                    title="✗ System Error",
-                    description="An error occurred. Please try again later.",
+                    title="✗ Format Error",
+                    description=error_message,
                     color=discord.Color.red()
+                )
+                error_embed.add_field(
+                    name="Correct Format", 
+                    value="Please use MM-DD format\nExample: `12-25` for December 25th", 
+                    inline=False
                 )
                 await interaction.response.send_message(embed=error_embed, ephemeral=True)
                 return
                 
-            # Determine the user to set birthday for and ensure it's a Member type
+            # Type assertion to help the linter
+            birthday_data = typing.cast(Dict[str, int], result)
+            
+            # Determine the user to set birthday for
             target_user = self.user_to_set if self.user_to_set else interaction.user
             
             if not isinstance(target_user, discord.Member):
@@ -254,157 +111,16 @@ class BirthdayDropdown(discord.ui.View):
                 return
                 
             # Set the birthday
-            birthday_data = {"month": self.month, "day": self.day}
-            result = await cog.set_birthday(interaction, target_user, birthday_data)
-            await interaction.response.send_message(embed=result, ephemeral=True)
-            self.stop()
+            result_embed = await self.cog.set_birthday(interaction, target_user, birthday_data)
+            await interaction.response.send_message(embed=result_embed, ephemeral=True)
         except Exception as e:
-            log.error(f"Error in submit_button: {e}")
+            log.error(f"Error in birthday modal: {e}")
             error_embed = discord.Embed(
                 title="✗ System Error",
                 description="An error occurred while processing your birthday. Please try again.",
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
-    
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Cancel the birthday selection."""
-        if self.cog:
-            # Return to main menu
-            embed = discord.Embed(
-                title="🎂 Birthday Menu",
-                description="Choose an option below:",
-                color=discord.Color.blue()
-            )
-            await interaction.response.edit_message(embed=embed, view=BirthdayMenuView(self.cog))
-        else:
-            # Just close the menu
-            embed = discord.Embed(
-                title="✓ Cancelled",
-                description="Birthday selection cancelled.",
-                color=discord.Color.green()
-            )
-            await interaction.response.edit_message(embed=embed, view=None)
-        self.stop()
-
-class DaySelectionView(discord.ui.View):
-    """View for selecting a specific day after choosing a range."""
-    
-    def __init__(self, month: int, day_options: List[discord.SelectOption], 
-                 user_to_set: Optional[discord.Member] = None, 
-                 cog: Optional['BirthdayCog'] = None):
-        """Initialize the day selection view.
-        
-        Args:
-            month: The selected month
-            day_options: The day options to display
-            user_to_set: The user to set the birthday for (if admin setting for someone else)
-            cog: The BirthdayCog instance (optional, for button navigation)
-        """
-        super().__init__(timeout=300)  # 5 minute timeout
-        self.month = month  # month will never be None here as it's required
-        self.day: Optional[int] = None
-        self.user_to_set = user_to_set
-        self.cog = cog
-        
-        # Add day selector
-        day_select = discord.ui.Select(
-            placeholder="Select specific day",
-            options=day_options
-        )
-        
-        # Day selection callback
-        async def day_callback(interaction: discord.Interaction):
-            try:
-                self.day = int(day_select.values[0])
-                await interaction.response.defer()
-            except Exception as e:
-                log.error(f"Error in specific day_callback: {e}")
-                error_embed = discord.Embed(
-                    title="✗ Error",
-                    description="An error occurred while selecting the day. Please try again.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-        
-        day_select.callback = day_callback
-        self.add_item(day_select)
-        self.day_select = day_select
-    
-    @discord.ui.button(label="Submit", style=discord.ButtonStyle.secondary)
-    async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Handle submission of the birthday."""
-        if self.day is None:
-            error_embed = discord.Embed(
-                title="✗ Selection Error",
-                description="Please select a day first!",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
-            return
-            
-        try:
-            # Get the cog instance if not already provided
-            cog = self.cog
-            if not cog:
-                cog = interaction.client.get_cog("Birthdays")  # type: ignore
-            
-            if not cog:
-                error_embed = discord.Embed(
-                    title="✗ System Error",
-                    description="An error occurred. Please try again later.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-                return
-                
-            # Determine the user to set birthday for and ensure it's a Member type
-            target_user = self.user_to_set if self.user_to_set else interaction.user
-            
-            if not isinstance(target_user, discord.Member):
-                error_embed = discord.Embed(
-                    title="✗ Error",
-                    description="Could not set birthday. User is not a valid server member.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-                return
-                
-            # Set the birthday - We know self.day is not None at this point
-            birthday_data: Dict[str, int] = {"month": self.month, "day": self.day}
-            result = await cog.set_birthday(interaction, target_user, birthday_data)
-            await interaction.response.send_message(embed=result, ephemeral=True)
-            self.stop()
-        except Exception as e:
-            log.error(f"Error in day submit_button: {e}")
-            error_embed = discord.Embed(
-                title="✗ System Error",
-                description="An error occurred while processing your birthday. Please try again.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
-    
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Cancel the birthday selection."""
-        if self.cog:
-            # Return to main menu
-            embed = discord.Embed(
-                title="🎂 Birthday Menu",
-                description="Choose an option below:",
-                color=discord.Color.blue()
-            )
-            await interaction.response.edit_message(embed=embed, view=BirthdayMenuView(self.cog))
-        else:
-            # Just close the menu
-            embed = discord.Embed(
-                title="✓ Cancelled",
-                description="Birthday selection cancelled.",
-                color=discord.Color.green()
-            )
-            await interaction.response.edit_message(embed=embed, view=None)
-        self.stop()
 
 class BirthdayCog(commands.Cog, name="Birthdays"):
     """Handles birthday tracking and notifications."""
@@ -508,7 +224,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                                 inline=True
                             )
                             
-                        embed.set_footer(text=f"Use /birthdays set to add your own birthday!")
+                        embed.set_footer(text=f"Use /birthdays to add your own birthday!")
                         
                         await announcement_channel.send(embed=embed)
                         log.info(f"Sent birthday announcement in {guild.name} for {len(birthday_users)} users")
@@ -519,6 +235,49 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
     async def before_birthday_check(self):
         """Wait until the bot is ready before starting the loop."""
         await self.bot.wait_until_ready()
+    
+    def parse_birthday(self, date_str: str) -> Tuple[bool, Union[Dict[str, int], str]]:
+        """Parse the birthday string into a structured format.
+        
+        Args:
+            date_str: Birthday date in MM-DD format
+            
+        Returns:
+            Tuple of (success, result)
+                If success is True, result is a dict with month and day
+                If success is False, result is an error message
+        """
+        # Check for MM-DD format
+        date_patterns = [
+            r'^(\d{1,2})-(\d{1,2})$',     # MM-DD
+            r'^(\d{1,2})\/(\d{1,2})$',    # MM/DD
+            r'^(\d{1,2})\.(\d{1,2})$',    # MM.DD
+        ]
+        
+        for pattern in date_patterns:
+            match = re.match(pattern, date_str)
+            if match:
+                try:
+                    month = int(match.group(1))
+                    day = int(match.group(2))
+                    
+                    # Validate month and day
+                    if month < 1 or month > 12:
+                        return False, "Month must be between 1 and 12"
+                    
+                    # Check days per month
+                    days_in_month = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]  # Accounting for leap years
+                    if day < 1 or day > days_in_month[month]:
+                        return False, f"Day must be between 1 and {days_in_month[month]} for this month"
+                    
+                    # Build result
+                    result = {"month": month, "day": day}
+                    return True, result
+                    
+                except ValueError:
+                    return False, "Invalid date format. Use MM-DD."
+        
+        return False, "Invalid date format. Please use MM-DD (month-day)."
     
     def format_birthday(self, birthday: Dict[str, int]) -> str:
         """Format a birthday dict into a readable string."""
@@ -655,15 +414,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                         
                     @discord.ui.button(label="Change Birthday", style=discord.ButtonStyle.secondary)
                     async def change_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                        change_embed = discord.Embed(
-                            title="🎂 Change Your Birthday",
-                            description="Please select your new birthday month and day:",
-                            color=discord.Color.blue()
-                        )
-                        await button_interaction.response.edit_message(
-                            embed=change_embed, 
-                            view=BirthdayDropdown(cog=self.cog)
-                        )
+                        await button_interaction.response.send_modal(BirthdayModal(self.cog))
                 
                 await interaction.response.send_message(embed=embed, view=ChangeButton(self), ephemeral=True)
             else:
@@ -690,15 +441,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                         
                     @discord.ui.button(label="Set Birthday", style=discord.ButtonStyle.secondary)
                     async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                        set_embed = discord.Embed(
-                            title="🎂 Set Your Birthday",
-                            description="Please select your birthday month and day:",
-                            color=discord.Color.blue()
-                        )
-                        await button_interaction.response.edit_message(
-                            embed=set_embed, 
-                            view=BirthdayDropdown(cog=self.cog)
-                        )
+                        await button_interaction.response.send_modal(BirthdayModal(self.cog))
                 
                 await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=True)
             else:
@@ -762,15 +505,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                     
                 @discord.ui.button(label="Set Your Birthday", style=discord.ButtonStyle.secondary)
                 async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                    set_embed = discord.Embed(
-                        title="🎂 Set Your Birthday",
-                        description="Please select your birthday month and day:",
-                        color=discord.Color.blue()
-                    )
-                    await button_interaction.response.edit_message(
-                        embed=set_embed, 
-                        view=BirthdayDropdown(cog=self.cog)
-                    )
+                    await button_interaction.response.send_modal(BirthdayModal(self.cog))
             
             await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=False)
             return
@@ -807,15 +542,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                 
             @discord.ui.button(label="Set Your Birthday", style=discord.ButtonStyle.secondary)
             async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                set_embed = discord.Embed(
-                    title="🎂 Set Your Birthday",
-                    description="Please select your birthday month and day:",
-                    color=discord.Color.blue()
-                )
-                await button_interaction.response.edit_message(
-                    embed=set_embed, 
-                    view=BirthdayDropdown(cog=self.cog)
-                )
+                await button_interaction.response.send_modal(BirthdayModal(self.cog))
         
         await interaction.response.send_message(embed=embed, view=BirthdayButton(self), ephemeral=False)
 
@@ -877,14 +604,8 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
             
-        embed = discord.Embed(
-            title="🎂 Admin Birthday Setup",
-            description=f"Setting birthday for **{user.display_name}**. Please select month and day using the dropdowns below.",
-            color=discord.Color.blue()
-        )
-        
-        view = BirthdayDropdown(user_to_set=user, cog=self)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        # Use a modal for the birthday input - sending modal directly
+        await interaction.response.send_modal(BirthdayModal(self, user_to_set=user))
 
 async def setup(bot: 'TutuBot'):
     """Sets up the BirthdayCog.
