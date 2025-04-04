@@ -205,7 +205,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                         for user in birthday_users:
                             embed.add_field(
                                 name=f"🎉 {user.display_name}",
-                                value=f"• Have an amazing day!\n• May all your wishes come true!",
+                                value=f"• Have an amazing day {user.mention}!\n• May all your wishes come true!",
                                 inline=True
                             )
                             
@@ -345,10 +345,11 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
             # Admin setting someone else's birthday
             embed = discord.Embed(
                 title="✓ Birthday Set!",
-                description=f"{user.mention}'s birthday has been set to **{formatted_date}**",
+                description=f"Birthday for {user.display_name} has been set to **{formatted_date}**",
                 color=discord.Color.green()
             )
-            embed.add_field(name="Next Birthday", value=f"• In {time_until}", inline=False)
+            embed.add_field(name="User", value=f"{user.mention}", inline=True)
+            embed.add_field(name="Next Birthday", value=f"• In {time_until}", inline=True)
             
         return embed
 
@@ -404,10 +405,12 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                 await interaction.response.send_message(embed=embed, view=ChangeButton(self), ephemeral=True)
             else:
                 embed = discord.Embed(
-                    title=f"🎂 {user.mention}'s Birthday",
-                    description=f"Their birthday is on **{formatted_date}**",
+                    title=f"🎂 Birthday Information",
+                    description=f"Birthday details for {user.display_name}",
                     color=discord.Color.blue()
                 )
+                embed.add_field(name="User", value=f"{user.mention}", inline=True)
+                embed.add_field(name="Birthday", value=f"**{formatted_date}**", inline=True)
                 embed.add_field(name="Coming up", value=f"• In {time_until}", inline=False)
                 await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
@@ -431,10 +434,11 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                 await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=True)
             else:
                 embed = discord.Embed(
-                    title=f"🎂 {user.mention}'s Birthday",
-                    description=f"They haven't set their birthday yet!",
+                    title=f"🎂 Birthday Information",
+                    description=f"{user.display_name} hasn't set their birthday yet!",
                     color=discord.Color.blue()
                 )
+                embed.add_field(name="User", value=f"{user.mention}", inline=True)
                 await interaction.response.send_message(embed=embed, ephemeral=True)
     
     async def show_server_birthdays(self, interaction: discord.Interaction):
@@ -512,8 +516,8 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
             time_until = self.format_time_until(next_date)
             
             embed.add_field(
-                name=f"{member.mention}",
-                value=f"• **{formatted_date}** (in {time_until})",
+                name=f"{member.display_name}",
+                value=f"• **{formatted_date}** (in {time_until})\n• {member.mention}",
                 inline=False
             )
         
