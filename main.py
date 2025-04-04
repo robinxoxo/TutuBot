@@ -74,6 +74,27 @@ class TutuBot(commands.Bot):
         except Exception as e:
              self.log.exception(f"Failed to sync commands: {e}")
 
+    async def on_message(self, message: discord.Message) -> None:
+        """Event triggered when a message is received.
+        
+        This overrides the default on_message handler to prevent automatic command processing,
+        since we're using slash commands exclusively.
+        """
+        # Make sure we have a valid message and author
+        if message.author is None or self.user is None:
+            return
+            
+        # Don't process commands from this bot
+        if message.author.id == self.user.id:
+            return
+            
+        # We're not using traditional command processing, so don't call process_commands
+        # Uncomment below line if you want to support both slash and traditional commands
+        # await self.process_commands(message)
+        
+        # This prevents type errors because we properly handle the message here
+        # but don't do anything with it since we're using slash commands
+        
     async def on_ready(self):
         """Event triggered when the bot is ready."""
         assert self.user is not None
@@ -107,7 +128,7 @@ if "cogs.roles" not in initial_cogs:
 
 # Create bot
 bot = TutuBot(
-    command_prefix=None,
+    command_prefix="!",  # Set a prefix even if not used to prevent errors
     intents=intents,
     initial_cogs=initial_cogs,
     owner_id=BOT_OWNER_ID_INT,
