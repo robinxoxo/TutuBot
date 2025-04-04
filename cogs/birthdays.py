@@ -19,19 +19,63 @@ log = logging.getLogger(__name__)
 # Birthday data file
 BIRTHDAY_FILE = "data/birthdays.json"
 
+class BirthdayMenuView(discord.ui.View):
+    """Main menu view for birthdays with button options."""
+    
+    def __init__(self, cog: 'BirthdayCog'):
+        """Initialize the birthday menu.
+        
+        Args:
+            cog: The BirthdayCog instance
+        """
+        super().__init__(timeout=180)  # 3 minute timeout
+        self.cog = cog
+    
+    @discord.ui.button(label="Set My Birthday", style=discord.ButtonStyle.secondary, emoji="🎂")
+    async def set_birthday_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Open the birthday selection dropdown."""
+        embed = discord.Embed(
+            title="🎂 Set Your Birthday",
+            description="Please select your birthday month and day using the dropdowns below.",
+            color=discord.Color.blue()
+        )
+        await interaction.response.edit_message(embed=embed, view=BirthdayDropdown(cog=self.cog))
+    
+    @discord.ui.button(label="View My Birthday", style=discord.ButtonStyle.secondary, emoji="📅")
+    async def view_birthday_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show the user's birthday."""
+        # Cast interaction.user to Member type since we know we're in a guild context
+        user = interaction.user
+        if isinstance(user, discord.Member):
+            await self.cog.show_user_birthday(interaction, user)
+        else:
+            error_embed = discord.Embed(
+                title="✗ Error",
+                description="This command can only be used in a server with a proper member.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+    
+    @discord.ui.button(label="Server Birthdays", style=discord.ButtonStyle.secondary, emoji="📊")
+    async def server_birthdays_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show upcoming birthdays in the server."""
+        await self.cog.show_server_birthdays(interaction)
+
 class BirthdayDropdown(discord.ui.View):
     """View for birthday selection dropdowns."""
     
-    def __init__(self, user_to_set: Optional[discord.Member] = None):
+    def __init__(self, user_to_set: Optional[discord.Member] = None, cog: Optional['BirthdayCog'] = None):
         """Initialize the dropdown view.
         
         Args:
             user_to_set: The user to set the birthday for (if admin setting for someone else)
+            cog: The BirthdayCog instance (optional, for button navigation)
         """
         super().__init__(timeout=300)  # 5 minute timeout
         self.month = None
         self.day = None
         self.user_to_set = user_to_set
+        self.cog = cog
         
         # Add month selector
         month_select = discord.ui.Select(
@@ -113,8 +157,11 @@ class BirthdayDropdown(discord.ui.View):
             return
             
         try:
-            # Get the cog instance
-            cog = interaction.client.get_cog("Birthdays")  # type: ignore
+            # Get the cog instance if not already provided
+            cog = self.cog
+            if not cog:
+                cog = interaction.client.get_cog("Birthdays")  # type: ignore
+            
             if not cog:
                 error_embed = discord.Embed(
                     title="✗ System Error",
@@ -124,9 +171,18 @@ class BirthdayDropdown(discord.ui.View):
                 await interaction.response.send_message(embed=error_embed, ephemeral=True)
                 return
                 
-            # Determine the user to set birthday for
+            # Determine the user to set birthday for and ensure it's a Member type
             target_user = self.user_to_set if self.user_to_set else interaction.user
             
+            if not isinstance(target_user, discord.Member):
+                error_embed = discord.Embed(
+                    title="✗ Error",
+                    description="Could not set birthday. User is not a valid server member.",
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
+                return
+                
             # Set the birthday
             result = await cog.set_birthday(interaction, target_user, {"month": self.month, "day": self.day})
             await interaction.response.send_message(embed=result, ephemeral=True)
@@ -139,6 +195,27 @@ class BirthdayDropdown(discord.ui.View):
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
+    
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Cancel the birthday selection."""
+        if self.cog:
+            # Return to main menu
+            embed = discord.Embed(
+                title="🎂 Birthday Menu",
+                description="Choose an option below:",
+                color=discord.Color.blue()
+            )
+            await interaction.response.edit_message(embed=embed, view=BirthdayMenuView(self.cog))
+        else:
+            # Just close the menu
+            embed = discord.Embed(
+                title="✓ Cancelled",
+                description="Birthday selection cancelled.",
+                color=discord.Color.green()
+            )
+            await interaction.response.edit_message(embed=embed, view=None)
+        self.stop()
 
 class BirthdayCog(commands.Cog, name="Birthdays"):
     """Handles birthday tracking and notifications."""
@@ -342,24 +419,112 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
             
         return embed
 
-    @app_commands.command(name="birthdays", description="Set or view birthdays in the server.")
-    @app_commands.describe(action="Action to perform", user="User to view or set birthday for (admin only)")
-    @app_commands.choices(action=[
-        app_commands.Choice(name="Set birthday", value="set"),
-        app_commands.Choice(name="View your birthday", value="view_self"),
-        app_commands.Choice(name="View server birthdays", value="view_all"),
-        app_commands.Choice(name="View someone's birthday", value="view_user"),
-        app_commands.Choice(name="Set birthday for user (admin)", value="set_admin")
-    ])
-    async def birthdays_command(self, interaction: discord.Interaction, 
-                               action: str,
-                               user: Optional[discord.Member] = None):
-        """Manage birthdays with an interactive dropdown UI.
+    async def show_user_birthday(self, interaction: discord.Interaction, user: discord.Member):
+        """Show a user's birthday in an embed.
         
         Args:
             interaction: The Discord interaction
-            action: Action to perform (set, view_self, view_all, view_user, set_admin)
-            user: User to view birthday of or set for (only needed for certain actions)
+            user: The user to show birthday for
+        """
+        if not interaction.guild:
+            error_embed = discord.Embed(
+                title="✗ Command Error",
+                description="This command can only be used in a server.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+            
+        guild_id = str(interaction.guild.id)
+        
+        # Initialize guild data if not exists
+        if guild_id not in self.birthdays:
+            self.birthdays[guild_id] = {}
+            
+        user_id = str(user.id)
+        is_self = user.id == interaction.user.id
+        
+        if user_id in self.birthdays[guild_id]:
+            birthday = self.birthdays[guild_id][user_id]
+            formatted_date = self.format_birthday(birthday)
+            next_birthday = self.get_next_birthday(birthday)
+            time_until = self.format_time_until(next_birthday)
+            
+            if is_self:
+                embed = discord.Embed(
+                    title="🎂 Your Birthday",
+                    description=f"Your birthday is set to **{formatted_date}**",
+                    color=discord.Color.blue()
+                )
+                embed.add_field(name="Next Birthday", value=f"• In {time_until}", inline=False)
+                
+                # Create a button to change the birthday
+                class ChangeButton(discord.ui.View):
+                    def __init__(self, cog):
+                        super().__init__(timeout=180)
+                        self.cog = cog
+                        
+                    @discord.ui.button(label="Change Birthday", style=discord.ButtonStyle.secondary)
+                    async def change_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                        change_embed = discord.Embed(
+                            title="🎂 Change Your Birthday",
+                            description="Please select your new birthday month and day:",
+                            color=discord.Color.blue()
+                        )
+                        await button_interaction.response.edit_message(
+                            embed=change_embed, 
+                            view=BirthdayDropdown(cog=self.cog)
+                        )
+                
+                await interaction.response.send_message(embed=embed, view=ChangeButton(self), ephemeral=True)
+            else:
+                embed = discord.Embed(
+                    title=f"🎂 {user.display_name}'s Birthday",
+                    description=f"Their birthday is on **{formatted_date}**",
+                    color=discord.Color.blue()
+                )
+                embed.add_field(name="Coming up", value=f"• In {time_until}", inline=False)
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            if is_self:
+                embed = discord.Embed(
+                    title="🎂 Your Birthday",
+                    description="You haven't set your birthday yet!",
+                    color=discord.Color.blue()
+                )
+                
+                # Create button to set birthday
+                class SetButton(discord.ui.View):
+                    def __init__(self, cog):
+                        super().__init__(timeout=180)
+                        self.cog = cog
+                        
+                    @discord.ui.button(label="Set Birthday", style=discord.ButtonStyle.secondary)
+                    async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                        set_embed = discord.Embed(
+                            title="🎂 Set Your Birthday",
+                            description="Please select your birthday month and day:",
+                            color=discord.Color.blue()
+                        )
+                        await button_interaction.response.edit_message(
+                            embed=set_embed, 
+                            view=BirthdayDropdown(cog=self.cog)
+                        )
+                
+                await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=True)
+            else:
+                embed = discord.Embed(
+                    title=f"🎂 {user.display_name}'s Birthday",
+                    description=f"They haven't set their birthday yet!",
+                    color=discord.Color.blue()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    async def show_server_birthdays(self, interaction: discord.Interaction):
+        """Show upcoming birthdays in the server.
+        
+        Args:
+            interaction: The Discord interaction
         """
         if not interaction.guild:
             error_embed = discord.Embed(
@@ -376,183 +541,161 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
         if guild_id not in self.birthdays:
             self.birthdays[guild_id] = {}
         
-        # Handle different actions
-        if action == "set":
-            # User wants to set their own birthday with dropdowns
+        # Get all birthdays with their next occurrence
+        upcoming_birthdays = []
+        for user_id, birthday in self.birthdays[guild_id].items():
+            member = interaction.guild.get_member(int(user_id))
+            if not member:
+                continue
+                
+            next_date = self.get_next_birthday(birthday)
+            upcoming_birthdays.append({
+                "member": member,
+                "birthday": birthday,
+                "next_date": next_date
+            })
+        
+        # Sort by upcoming date
+        upcoming_birthdays.sort(key=lambda x: x["next_date"])
+        
+        if not upcoming_birthdays:
             embed = discord.Embed(
-                title="🎂 Set Your Birthday",
-                description="Please select your birthday month and day using the dropdowns below.",
+                title="📅 Server Birthdays",
+                description="No birthdays have been set in this server yet!",
                 color=discord.Color.blue()
             )
-            view = BirthdayDropdown()
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-            return
             
-        elif action == "set_admin":
-            # Admin wants to set someone else's birthday
-            # Check permissions
-            is_admin = False
-            if interaction.guild:
-                permissions = interaction.permissions
-                is_admin = permissions.administrator
-                
-            if not is_admin:
-                error_embed = discord.Embed(
-                    title="✗ Permission Denied",
-                    description="You need administrator permissions to set birthdays for others.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-                return
-                
-            if not user:
-                error_embed = discord.Embed(
-                    title="✗ Missing Information",
-                    description="Please specify a user to set the birthday for.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-                return
-                
-            embed = discord.Embed(
-                title="🎂 Admin Birthday Setup",
-                description=f"Setting birthday for **{user.display_name}**. Please select month and day using the dropdowns below.",
-                color=discord.Color.blue()
-            )
-            view = BirthdayDropdown(user_to_set=user)
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-            return
-            
-        elif action == "view_self":
-            # View own birthday
-            user_id = str(interaction.user.id)
-            
-            if user_id in self.birthdays[guild_id]:
-                birthday = self.birthdays[guild_id][user_id]
-                formatted_date = self.format_birthday(birthday)
-                next_birthday = self.get_next_birthday(birthday)
-                time_until = self.format_time_until(next_birthday)
-                
-                embed = discord.Embed(
-                    title="🎂 Your Birthday",
-                    description=f"Your birthday is set to **{formatted_date}**",
-                    color=discord.Color.blue()
-                )
-                embed.add_field(name="Next Birthday", value=f"In {time_until}", inline=False)
-                embed.add_field(
-                    name="Reset Birthday", 
-                    value="• Use `/birthdays set` to change your birthday", 
-                    inline=False
-                )
-            else:
-                embed = discord.Embed(
-                    title="🎂 Your Birthday",
-                    description="You haven't set your birthday yet!",
-                    color=discord.Color.blue()
-                )
-                embed.add_field(
-                    name="Set Your Birthday", 
-                    value="• Use `/birthdays set` to set your birthday with a dropdown menu", 
-                    inline=False
-                )
-                
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-            
-        elif action == "view_user":
-            # View someone else's birthday
-            if not user:
-                error_embed = discord.Embed(
-                    title="✗ Missing Information",
-                    description="Please specify a user to view their birthday.",
-                    color=discord.Color.red()
-                )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
-                return
-                
-            user_id = str(user.id)
-            if user_id in self.birthdays[guild_id]:
-                birthday = self.birthdays[guild_id][user_id]
-                formatted_date = self.format_birthday(birthday)
-                next_birthday = self.get_next_birthday(birthday)
-                time_until = self.format_time_until(next_birthday)
-                
-                embed = discord.Embed(
-                    title=f"🎂 {user.display_name}'s Birthday",
-                    description=f"Their birthday is on **{formatted_date}**",
-                    color=discord.Color.blue()
-                )
-                embed.add_field(name="Coming up", value=f"In {time_until}", inline=False)
-            else:
-                embed = discord.Embed(
-                    title=f"🎂 {user.display_name}'s Birthday",
-                    description=f"They haven't set their birthday yet!",
-                    color=discord.Color.blue()
-                )
-            
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-            
-        elif action == "view_all":
-            # List all upcoming birthdays
-            # Get all birthdays with their next occurrence
-            upcoming_birthdays = []
-            for user_id, birthday in self.birthdays[guild_id].items():
-                member = interaction.guild.get_member(int(user_id))
-                if not member:
-                    continue
+            # Add button to set birthday
+            class SetButton(discord.ui.View):
+                def __init__(self, cog):
+                    super().__init__(timeout=180)
+                    self.cog = cog
                     
-                next_date = self.get_next_birthday(birthday)
-                upcoming_birthdays.append({
-                    "member": member,
-                    "birthday": birthday,
-                    "next_date": next_date
-                })
+                @discord.ui.button(label="Set Your Birthday", style=discord.ButtonStyle.secondary)
+                async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                    set_embed = discord.Embed(
+                        title="🎂 Set Your Birthday",
+                        description="Please select your birthday month and day:",
+                        color=discord.Color.blue()
+                    )
+                    await button_interaction.response.edit_message(
+                        embed=set_embed, 
+                        view=BirthdayDropdown(cog=self.cog)
+                    )
             
-            # Sort by upcoming date
-            upcoming_birthdays.sort(key=lambda x: x["next_date"])
+            await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=False)
+            return
+        
+        # Show upcoming birthdays    
+        embed = discord.Embed(
+            title="📅 Upcoming Birthdays",
+            description=f"The next {min(5, len(upcoming_birthdays))} birthdays in {interaction.guild.name}",
+            color=discord.Color.blue()
+        )
+        
+        # Add fields for each upcoming birthday
+        for i, entry in enumerate(upcoming_birthdays[:5]):
+            member = entry["member"]
+            birthday = entry["birthday"]
+            next_date = entry["next_date"]
             
-            if not upcoming_birthdays:
-                embed = discord.Embed(
-                    title="📅 Server Birthdays",
-                    description="No birthdays have been set in this server yet!",
+            formatted_date = self.format_birthday(birthday)
+            time_until = self.format_time_until(next_date)
+            
+            embed.add_field(
+                name=f"{member.display_name}",
+                value=f"• **{formatted_date}** (in {time_until})",
+                inline=False
+            )
+        
+        embed.set_footer(text="Use /birthdays to set or view birthdays")
+        
+        # Add button to set birthday
+        class BirthdayButton(discord.ui.View):
+            def __init__(self, cog):
+                super().__init__(timeout=180)
+                self.cog = cog
+                
+            @discord.ui.button(label="Set Your Birthday", style=discord.ButtonStyle.secondary)
+            async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                set_embed = discord.Embed(
+                    title="🎂 Set Your Birthday",
+                    description="Please select your birthday month and day:",
                     color=discord.Color.blue()
                 )
-                embed.add_field(
-                    name="Set Your Birthday", 
-                    value="• Use `/birthdays set` to set your birthday with a dropdown menu", 
-                    inline=False
+                await button_interaction.response.edit_message(
+                    embed=set_embed, 
+                    view=BirthdayDropdown(cog=self.cog)
                 )
-                await interaction.response.send_message(embed=embed, ephemeral=False)
-                return
-            
-            # Show upcoming birthdays    
-            embed = discord.Embed(
-                title="📅 Upcoming Birthdays",
-                description=f"The next {min(5, len(upcoming_birthdays))} birthdays in {interaction.guild.name}",
-                color=discord.Color.blue()
-            )
-            
-            # Add fields for each upcoming birthday
-            for i, entry in enumerate(upcoming_birthdays[:5]):
-                member = entry["member"]
-                birthday = entry["birthday"]
-                next_date = entry["next_date"]
-                
-                formatted_date = self.format_birthday(birthday)
-                time_until = self.format_time_until(next_date)
-                
-                embed.add_field(
-                    name=f"{member.display_name}",
-                    value=f"• **{formatted_date}** (in {time_until})",
-                    inline=False
-                )
-            
-            embed.set_footer(text="Use /birthdays set to set your own birthday!")
-            
-            await interaction.response.send_message(embed=embed, ephemeral=False)
-            return
+        
+        await interaction.response.send_message(embed=embed, view=BirthdayButton(self), ephemeral=False)
 
+    @app_commands.command(name="birthdays", description="Birthday management commands")
+    async def birthdays_command(self, interaction: discord.Interaction):
+        """Main birthday command showing a menu of options.
+        
+        Args:
+            interaction: The Discord interaction
+        """
+        if not interaction.guild:
+            error_embed = discord.Embed(
+                title="✗ Command Error",
+                description="This command can only be used in a server.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="🎂 Birthday Menu",
+            description="Choose an option below:",
+            color=discord.Color.blue()
+        )
+        
+        view = BirthdayMenuView(self)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    
+    @app_commands.command(name="birthday-admin", description="[Admin] Set a birthday for another user")
+    @app_commands.describe(user="The user to set the birthday for")
+    async def birthday_admin_command(self, interaction: discord.Interaction, user: discord.Member):
+        """Admin command to set birthdays for other users.
+        
+        Args:
+            interaction: The Discord interaction
+            user: The user to set birthday for
+        """
+        if not interaction.guild:
+            error_embed = discord.Embed(
+                title="✗ Command Error",
+                description="This command can only be used in a server.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+            
+        # Check permissions
+        is_admin = False
+        if interaction.guild:
+            permissions = interaction.permissions
+            is_admin = permissions.administrator
+            
+        if not is_admin:
+            error_embed = discord.Embed(
+                title="✗ Permission Denied",
+                description="You need administrator permissions to set birthdays for others.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+            
+        embed = discord.Embed(
+            title="🎂 Admin Birthday Setup",
+            description=f"Setting birthday for **{user.display_name}**. Please select month and day using the dropdowns below.",
+            color=discord.Color.blue()
+        )
+        
+        view = BirthdayDropdown(user_to_set=user, cog=self)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the BirthdayCog.
