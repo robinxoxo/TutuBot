@@ -29,27 +29,26 @@ ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "tech_expert": {"name": "Tech Expert", "emoji": "👨‍🔧", "category": RoleCategory.CREATIVE, "description": "Hardware, software, troubleshooting", "color": discord.Color.dark_gold()},
     
     # MMO Games - Default color (no color specified)
+    "ffxiv": {"name": "Final Fantasy XIV", "emoji": "💎", "category": RoleCategory.MMO, "description": ""},
     "wow": {"name": "World of Warcraft", "emoji": "🧙‍♂️", "category": RoleCategory.MMO, "description": ""},
     "eso": {"name": "The Elder Scrolls Online", "emoji": "📜", "category": RoleCategory.MMO, "description": ""},
     "gw2": {"name": "Guild Wars 2", "emoji": "🐉", "category": RoleCategory.MMO, "description": ""},
     "bdo": {"name": "Black Desert Online", "emoji": "⚔️", "category": RoleCategory.MMO, "description": ""},
-    "lost_ark": {"name": "Lost Ark", "emoji": "🔮", "category": RoleCategory.MMO, "description": ""},
     
     # Multiplayer Games - Default color (no color specified)
     "minecraft": {"name": "Minecraft", "emoji": "⛏️", "category": RoleCategory.MULTIPLAYER, "description": ""},
-    "cod": {"name": "Call of Duty", "emoji": "🔫", "category": RoleCategory.MULTIPLAYER, "description": "Franchise"},
-    "cod_zombies": {"name": "CoD Zombies", "emoji": "🧟", "category": RoleCategory.MULTIPLAYER, "description": ""},
+    "cod": {"name": "Call of Duty", "emoji": "🔫", "category": RoleCategory.MULTIPLAYER, "description": "MP, Zombies, Warzone"},
+    "monster_hunter": {"name": "Monster Hunter", "emoji": "👹", "category": RoleCategory.MULTIPLAYER, "description": "Wilds"},
     "dbd": {"name": "Dead By Daylight", "emoji": "💀", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "fortnite": {"name": "Fortnite", "emoji": "🧱", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "destiny2": {"name": "Destiny 2", "emoji": "🪐", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "warframe": {"name": "Warframe", "emoji": "🚀", "category": RoleCategory.MULTIPLAYER, "description": ""},
-    "sea_of_thieves": {"name": "Sea of Thieves", "emoji": "☠️", "category": RoleCategory.MULTIPLAYER, "description": ""},
-    "halo": {"name": "Halo", "emoji": "🌌", "category": RoleCategory.MULTIPLAYER, "description": "Franchise"},
     "apex": {"name": "Apex Legends", "emoji": "🅰️", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "valorant": {"name": "Valorant", "emoji": "🔥", "category": RoleCategory.MULTIPLAYER, "description": ""},
     
     # Nintendo Games - Default color (no color specified)
     "animal_crossing": {"name": "Animal Crossing", "emoji": "🍃", "category": RoleCategory.NINTENDO, "description": "New Horizons"},
+    "mk_world": {"name": "Mario Kart", "emoji": "🏎️", "category": RoleCategory.NINTENDO, "description": "World"},
     "smash": {"name": "Super Smash Bros", "emoji": "🥊", "category": RoleCategory.NINTENDO, "description": "Ultimate"},
     "pokemon": {"name": "Pokémon", "emoji": "🐹", "category": RoleCategory.NINTENDO, "description": "Franchise"},
     "splatoon": {"name": "Splatoon", "emoji": "🖌️", "category": RoleCategory.NINTENDO, "description": "Franchise"},
@@ -57,10 +56,8 @@ ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     # Party Games & Social - Default color (no color specified)
     "among_us": {"name": "Among Us", "emoji": "🌘", "category": RoleCategory.PARTY, "description": ""},
     "fall_guys": {"name": "Fall Guys", "emoji": "👑", "category": RoleCategory.PARTY, "description": ""},
-    "phasmophobia": {"name": "Phasmophobia", "emoji": "👻", "category": RoleCategory.PARTY, "description": ""},
-    "jackbox": {"name": "Jackbox Party Pack", "emoji": "🥳", "category": RoleCategory.PARTY, "description": "Games"},
+    "jackbox": {"name": "Jackbox Party Pack", "emoji": "🥳", "category": RoleCategory.PARTY, "description": "Franchise"},
     "watch_party": {"name": "Watch Party", "emoji": "🍿", "category": RoleCategory.PARTY, "description": "Movies & TV"},
-    "multiversus": {"name": "MultiVersus", "emoji": "🆚", "category": RoleCategory.PARTY, "description": ""}
 }
 
 # To add a new role:
