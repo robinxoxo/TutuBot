@@ -655,7 +655,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
         view = BirthdayMenuView(self)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
-    @app_commands.command(name="birthday-admin", description="[Admin] Set a birthday for another user")
+    @app_commands.command(name="setbirthdays", description="[Admin] Set a birthday for another user")
     @app_commands.describe(user="The user to set the birthday for")
     async def birthday_admin_command(self, interaction: discord.Interaction, user: discord.Member):
         """Admin command to set birthdays for other users.
