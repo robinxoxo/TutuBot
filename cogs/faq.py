@@ -84,7 +84,7 @@ class FaqCog(commands.Cog, name="FAQ"):
                         inline=False
                     )
 
-        embed.set_footer(text="Use the slash (/) to invoke commands. | Bot created by <@robinxoxo>")
+        embed.set_footer(text=f"Use the slash (/) to invoke commands. | Bot created by <@254017258929791006>")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
