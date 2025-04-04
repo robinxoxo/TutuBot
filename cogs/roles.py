@@ -313,7 +313,8 @@ class RoleCog(commands.Cog, name="Roles"):
                     # Create role with random color
                     role = await interaction.guild.create_role(
                         name=role_info["name"],
-                        reason=f"Auto-created by role setup command - {category.value}"
+                        reason=f"Auto-created by role setup command - {category.value}",
+                        color=role_info.get("color", discord.Color.default())
                     )
                     created_roles.append(role)
                 except Exception as e:
