@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 load_dotenv()
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
-CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager,cogs.faq").split(",")
+CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager,cogs.faq,cogs.twitch").split(",")
 GUILD_ID = os.getenv("GUILD_ID", "623694120531001344")  # Default to the specified guild ID
 
 # Validate variables
