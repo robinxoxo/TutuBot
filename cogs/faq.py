@@ -37,6 +37,9 @@ class FaqCog(commands.Cog, name="FAQ"):
         )
 
         command_list = self.bot.tree.get_commands()
+        
+        # Filter out the help command itself
+        command_list = [cmd for cmd in command_list if cmd.name != "help"]
 
         if not command_list:
             embed.description = "No commands seem to be registered currently."

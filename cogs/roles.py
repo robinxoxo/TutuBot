@@ -174,7 +174,7 @@ class RolesSelect(ui.Select):
                 
             if missing_roles:
                 missing_list = "\n".join(f"⚠️ {role}" for role in missing_roles)
-                embed.add_field(name="Missing Roles", value=missing_list + "\n*(Admin needs to create)*", inline=True)
+                embed.add_field(name="Missing Roles", value=missing_list + "\n*(Admin needs to sync)*", inline=True)
                 
             if current_roles:
                 embed.add_field(name="Your Current Roles", value="\n".join(current_roles), inline=False)
