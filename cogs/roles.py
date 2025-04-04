@@ -153,9 +153,12 @@ class RolesSelect(ui.Select):
                 color=discord.Color.green() if (roles_to_add or roles_to_remove) else discord.Color.blue()
             )
             
-            # Get current roles in this category
+            # Get updated member to ensure we have the latest roles
+            updated_member = await interaction.guild.fetch_member(interaction.user.id)
+            
+            # Get current roles in this category using updated member
             current_roles = []
-            for role in interaction.user.roles:
+            for role in updated_member.roles:
                 if any(role.name == info["name"] for info in category_roles.values()):
                     emoji = next((v["emoji"] for k, v in ROLE_DEFINITIONS.items() if v["name"] == role.name), "")
                     current_roles.append(f"{emoji} {role.name}")
@@ -178,8 +181,8 @@ class RolesSelect(ui.Select):
             else:
                 embed.add_field(name="Your Current Roles", value="None in this category", inline=False)
             
-            # Create a new view with updated role selections using the user's updated roles
-            updated_view = RolesView(self.category, interaction.user.roles)
+            # Create a new view with updated role selections using the updated member's roles
+            updated_view = RolesView(self.category, updated_member.roles)
             
             await interaction.response.edit_message(
                 content=None,
@@ -221,7 +224,36 @@ class RolesView(ui.View):
     
     async def back_button_callback(self, interaction: discord.Interaction):
         """Return to the category selection menu."""
-        view = RolesView()  # Create a new view with just the category selector
+        # We need a valid member with roles
+        if not interaction.guild or not isinstance(interaction.user, discord.Member):
+            # Fall back to a simple view with no user roles
+            view = RolesView()
+            
+            # Simple embed without role information
+            embed = discord.Embed(
+                title="👤 Role Management",
+                description="Select a category of roles to manage from the dropdown below.",
+                color=discord.Color.blue()
+            )
+            
+            embed.add_field(
+                name="How It Works",
+                value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected",
+                inline=False
+            )
+            
+            await interaction.response.edit_message(
+                content=None,
+                embed=embed,
+                view=view
+            )
+            return
+            
+        # Get updated member to ensure we have the latest roles
+        member = await interaction.guild.fetch_member(interaction.user.id)
+        
+        # Create a new view with the updated roles
+        view = RolesView(user_roles=member.roles)
         
         # Create embed for main menu
         embed = discord.Embed(
@@ -232,8 +264,47 @@ class RolesView(ui.View):
         
         embed.add_field(
             name="How It Works",
-            value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected"
+            value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected",
+            inline=False
         )
+        
+        # Group user's current roles by category
+        member_role_names = [role.name for role in member.roles]
+        roles_by_category = {}
+        
+        # Initialize categories for sorting
+        for category in RoleCategory:
+            roles_by_category[category] = []
+            
+        # Sort roles into categories
+        for role_id, role_info in ROLE_DEFINITIONS.items():
+            if role_info["name"] in member_role_names:
+                category = role_info["category"]
+                roles_by_category[category].append(f"{role_info['emoji']} {role_info['name']}")
+        
+        # Add fields for current roles by category
+        has_roles = False
+        for category, roles in roles_by_category.items():
+            if roles:
+                has_roles = True
+                embed.add_field(
+                    name=f"{category.value}",
+                    value="\n".join(roles),
+                    inline=True
+                )
+        
+        if not has_roles:
+            embed.add_field(
+                name="Roles",
+                value="You don't have any roles yet. Select a category to add roles.",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="Your Current Roles",
+                value="Your current roles are displayed above.",
+                inline=False
+            )
         
         await interaction.response.edit_message(
             content=None,
@@ -260,8 +331,11 @@ class RoleCog(commands.Cog, name="Roles"):
             await interaction.response.send_message("There was an error retrieving your roles. Please try again.", ephemeral=True)
             return
             
+        # Get updated member to ensure we have the latest roles
+        member = await interaction.guild.fetch_member(interaction.user.id)
+            
         # Initialize the role category selection view
-        view = RolesView(user_roles=interaction.user.roles)
+        view = RolesView(user_roles=member.roles)
         
         # Create embed for main menu
         embed = discord.Embed(
@@ -272,8 +346,47 @@ class RoleCog(commands.Cog, name="Roles"):
         
         embed.add_field(
             name="How It Works",
-            value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected"
+            value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected",
+            inline=False
         )
+        
+        # Group user's current roles by category
+        member_role_names = [role.name for role in member.roles]
+        roles_by_category = {}
+        
+        # Initialize categories for sorting
+        for category in RoleCategory:
+            roles_by_category[category] = []
+            
+        # Sort roles into categories
+        for role_id, role_info in ROLE_DEFINITIONS.items():
+            if role_info["name"] in member_role_names:
+                category = role_info["category"]
+                roles_by_category[category].append(f"{role_info['emoji']} {role_info['name']}")
+        
+        # Add fields for current roles by category
+        has_roles = False
+        for category, roles in roles_by_category.items():
+            if roles:
+                has_roles = True
+                embed.add_field(
+                    name=f"{category.value}",
+                    value="\n".join(roles),
+                    inline=True
+                )
+        
+        if not has_roles:
+            embed.add_field(
+                name="Roles",
+                value="You don't have any roles yet. Select a category to add roles.",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="Your Current Roles",
+                value="Your current roles are displayed above.",
+                inline=False
+            )
         
         await interaction.response.send_message(
             embed=embed,
