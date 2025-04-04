@@ -36,21 +36,6 @@ class BirthdayMenuView(discord.ui.View):
         """Open a modal to set birthday."""
         await interaction.response.send_modal(BirthdayModal(self.cog))
     
-    @discord.ui.button(label="View My Birthday", style=discord.ButtonStyle.secondary, emoji="📅")
-    async def view_birthday_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Show the user's birthday."""
-        # Cast interaction.user to Member type since we know we're in a guild context
-        user = interaction.user
-        if isinstance(user, discord.Member):
-            await self.cog.show_user_birthday(interaction, user)
-        else:
-            error_embed = discord.Embed(
-                title="✗ Error",
-                description="This command can only be used in a server with a proper member.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
-    
     @discord.ui.button(label="Server Birthdays", style=discord.ButtonStyle.secondary, emoji="📊")
     async def server_birthdays_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show upcoming birthdays in the server."""
@@ -507,7 +492,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
                 async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
                     await button_interaction.response.send_modal(BirthdayModal(self.cog))
             
-            await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=False)
+            await interaction.response.send_message(embed=embed, view=SetButton(self), ephemeral=True)
             return
         
         # Show upcoming birthdays    
@@ -544,7 +529,7 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
             async def set_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
                 await button_interaction.response.send_modal(BirthdayModal(self.cog))
         
-        await interaction.response.send_message(embed=embed, view=BirthdayButton(self), ephemeral=False)
+        await interaction.response.send_message(embed=embed, view=BirthdayButton(self), ephemeral=True)
 
     @app_commands.command(name="birthdays", description="Birthday management commands")
     async def birthdays_command(self, interaction: discord.Interaction):
