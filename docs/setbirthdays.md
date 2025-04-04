@@ -25,10 +25,6 @@ When used, this command will:
 3. Save the birthday information to the server's birthday database
 4. Display a confirmation message showing the set birthday
 
-## 🖼️ Example
-
-![setbirthdays example](images/setbirthdays-example.png)
-
 ## 💡 Notes
 
 • The bot automatically handles birthdays and will send announcements on the day

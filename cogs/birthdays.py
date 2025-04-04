@@ -514,10 +514,10 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
             
             formatted_date = self.format_birthday(birthday)
             time_until = self.format_time_until(next_date)
-            
+
             embed.add_field(
-                name=f"{member.display_name}",
-                value=f"• **{formatted_date}** (in {time_until})\n• {member.mention}",
+                name=f"",
+                value=f"{member.mention}: **{formatted_date}** (in {time_until})",
                 inline=False
             )
         

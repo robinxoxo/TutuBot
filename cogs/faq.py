@@ -88,12 +88,11 @@ class FaqCog(commands.Cog, name="FAQ"):
         
         # Add creator info as a field instead of in footer
         embed.add_field(
-            name="Bot Creator",
-            value="<@254017258929791006>",
+            name="🤖 Bot Creator",
+            value="<@148682563861479425>",
             inline=False
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 async def setup(bot: 'TutuBot'):
     """Sets up the FaqCog.
