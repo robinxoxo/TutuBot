@@ -162,11 +162,11 @@ class RolesSelect(ui.Select):
                     
             # Add fields for added, removed, and current roles
             if roles_to_add:
-                added_list = "\n".join(f"✅ {role.name}" for role in roles_to_add)
+                added_list = "\n".join(f"✓ {role.name}" for role in roles_to_add)
                 embed.add_field(name="Added Roles", value=added_list, inline=True)
                 
             if roles_to_remove:
-                removed_list = "\n".join(f"❌ {role.name}" for role in roles_to_remove)
+                removed_list = "\n".join(f"✗ {role.name}" for role in roles_to_remove)
                 embed.add_field(name="Removed Roles", value=removed_list, inline=True)
                 
             if missing_roles:
@@ -295,48 +295,75 @@ class RoleCog(commands.Cog, name="Roles"):
         # Get existing roles
         existing_roles = {role.name: role for role in interaction.guild.roles}
         
-        # Determine which roles are missing
-        missing_roles: Dict[RoleCategory, List[Dict[str, Any]]] = {}
-        for role_id, role_info in ROLE_DEFINITIONS.items():
-            if role_info["name"] not in existing_roles:
-                if role_info["category"] not in missing_roles:
-                    missing_roles[role_info["category"]] = []
-                missing_roles[role_info["category"]].append(role_info)
-        
-        # Create missing roles
+        # Track our changes
         created_roles = []
+        updated_roles = []
         failed_roles = []
         
-        for category, roles in missing_roles.items():
-            for role_info in roles:
+        # Process all roles defined in configuration
+        for role_id, role_info in ROLE_DEFINITIONS.items():
+            role_name = role_info["name"]
+            role_color = role_info.get("color", discord.Color.default())
+            
+            if role_name not in existing_roles:
+                # Create missing role
                 try:
-                    # Create role with random color
+                    category = role_info["category"]
                     role = await interaction.guild.create_role(
-                        name=role_info["name"],
+                        name=role_name,
                         reason=f"Auto-created by role setup command - {category.value}",
-                        color=role_info.get("color", discord.Color.default())
+                        color=role_color
                     )
                     created_roles.append(role)
                 except Exception as e:
-                    log.exception(f"Failed to create role {role_info['name']}: {e}")
-                    failed_roles.append(role_info["name"])
+                    log.exception(f"Failed to create role {role_name}: {e}")
+                    failed_roles.append(role_name)
+            else:
+                # Update existing role if needed
+                existing_role = existing_roles[role_name]
+                needs_update = False
+                update_fields = []
+                
+                # Check if color needs to be updated
+                if role_color != existing_role.color:
+                    needs_update = True
+                    update_fields.append("color")
+                
+                if needs_update:
+                    try:
+                        await existing_role.edit(
+                            color=role_color,
+                            reason="Auto-updated by role sync command"
+                        )
+                        updated_roles.append((existing_role, update_fields))
+                    except Exception as e:
+                        log.exception(f"Failed to update role {role_name}: {e}")
+                        failed_roles.append(f"{role_name} (update)")
         
         # Create embed for results
         embed = discord.Embed(
-            title="Role Setup Results",
-            color=discord.Color.green() if created_roles else discord.Color.blue()
+            title="Role Synchronization Results",
+            color=discord.Color.green() if (created_roles or updated_roles) else discord.Color.blue()
         )
         
-        # Add fields for created and failed roles
+        # Add fields for created roles
         if created_roles:
-            created_list = "\n".join(f"✅ {role.name}" for role in created_roles)
+            created_list = "\n".join(f"✓ {role.name}" for role in created_roles)
             embed.add_field(name=f"Created {len(created_roles)} Roles", value=created_list, inline=False)
         else:
             embed.add_field(name="No New Roles Created", value="All required roles already exist.", inline=False)
+        
+        # Add fields for updated roles
+        if updated_roles:
+            updated_list = "\n".join(f"🔄 {role.name} ({', '.join(fields)})" for role, fields in updated_roles)
+            embed.add_field(name=f"Updated {len(updated_roles)} Roles", value=updated_list, inline=False)
+        else:
+            embed.add_field(name="No Roles Updated", value="All existing roles are up to date.", inline=False)
             
+        # Add fields for failed roles
         if failed_roles:
-            failed_list = "\n".join(f"❌ {role}" for role in failed_roles)
-            embed.add_field(name=f"Failed to Create {len(failed_roles)} Roles", value=failed_list, inline=False)
+            failed_list = "\n".join(f"✗ {role}" for role in failed_roles)
+            embed.add_field(name=f"Failed Operations ({len(failed_roles)})", value=failed_list, inline=False)
         
         await interaction.followup.send(embed=embed, ephemeral=True)
 

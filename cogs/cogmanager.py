@@ -379,7 +379,7 @@ class CogManager(commands.Cog):
         # Create embed
         embed = discord.Embed(
             title="Cogs Status",
-            description="● Active | ○ Inactive",
+            description="✓ Active | ✗ Inactive",
             color=discord.Color.blue()
         )
         
@@ -387,7 +387,7 @@ class CogManager(commands.Cog):
         core_section = ""
         for cog_name in sorted(core_cogs):
             display_name = cog_name.replace('cogs.', '')
-            status = "●" if cog_name in loaded_cogs else "○"
+            status = "✓" if cog_name in loaded_cogs else "✗"
             core_section += f"{status} **{display_name}**\n"
             
         if core_section:
@@ -401,7 +401,7 @@ class CogManager(commands.Cog):
         non_core_section = ""
         for cog_name in sorted(non_core_cogs):
             display_name = cog_name.replace('cogs.', '')
-            status = "●" if cog_name in loaded_cogs else "○"
+            status = "✓" if cog_name in loaded_cogs else "✗"
             non_core_section += f"{status} **{display_name}**\n"
             
         if non_core_section:
