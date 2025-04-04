@@ -43,7 +43,7 @@ class RoleCategorySelect(ui.Select):
         
         # Create embed for category
         embed = discord.Embed(
-            title=f"{selected_category.value}",
+            title=f"🏷️ {selected_category.value}",
             description="Select roles to add or remove from the dropdown below.",
             color=discord.Color.blue()
         )
@@ -148,7 +148,7 @@ class RolesSelect(ui.Select):
                 
             # Create embed for result
             embed = discord.Embed(
-                title=f"{self.category.value}",
+                title=f"🏷️ {self.category.value}",
                 description="Your roles have been updated.",
                 color=discord.Color.green() if (roles_to_add or roles_to_remove) else discord.Color.blue()
             )
@@ -221,7 +221,7 @@ class RolesView(ui.View):
         
         # Create embed for main menu
         embed = discord.Embed(
-            title="Role Management",
+            title="👤 Role Management",
             description="Select a category of roles to manage from the dropdown below.",
             color=discord.Color.blue()
         )
@@ -261,7 +261,7 @@ class RoleCog(commands.Cog, name="Roles"):
         
         # Create embed for main menu
         embed = discord.Embed(
-            title="Role Management",
+            title="👤 Role Management",
             description="Select a category of roles to manage from the dropdown below.",
             color=discord.Color.blue()
         )
@@ -342,7 +342,7 @@ class RoleCog(commands.Cog, name="Roles"):
         
         # Create embed for results
         embed = discord.Embed(
-            title="Role Synchronization Results",
+            title="🔄 Role Synchronization Results",
             color=discord.Color.green() if (created_roles or updated_roles) else discord.Color.blue()
         )
         
@@ -355,7 +355,7 @@ class RoleCog(commands.Cog, name="Roles"):
         
         # Add fields for updated roles
         if updated_roles:
-            updated_list = "\n".join(f"🔄 {role.name} ({', '.join(fields)})" for role, fields in updated_roles)
+            updated_list = "\n".join(f"✓ {role.name} ({', '.join(fields)})" for role, fields in updated_roles)
             embed.add_field(name=f"Updated {len(updated_roles)} Roles", value=updated_list, inline=False)
         else:
             embed.add_field(name="No Roles Updated", value="All existing roles are up to date.", inline=False)

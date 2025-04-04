@@ -74,7 +74,7 @@ class CogManager(commands.Cog):
         # Permission check
         if not await self._check_permission(interaction):
             embed = discord.Embed(
-                title="Access Denied",
+                title="🚫 Access Denied",
                 description="You need administrator permissions to use this command.",
                 color=discord.Color.red()
             )
@@ -121,7 +121,7 @@ class CogManager(commands.Cog):
         # Permission check
         if not await self._check_permission(interaction):
             embed = discord.Embed(
-                title="Access Denied",
+                title="🚫 Access Denied",
                 description="You need administrator permissions to use this command.",
                 color=discord.Color.red()
             )
@@ -182,7 +182,7 @@ class CogManager(commands.Cog):
         # Permission check
         if not await self._check_permission(interaction):
             embed = discord.Embed(
-                title="Access Denied",
+                title="🚫 Access Denied",
                 description="You need administrator permissions to use this command.",
                 color=discord.Color.red()
             )
@@ -249,7 +249,7 @@ class CogManager(commands.Cog):
         # Permission check
         if not await self._check_permission(interaction):
             embed = discord.Embed(
-                title="Access Denied",
+                title="🚫 Access Denied",
                 description="You need administrator permissions to use this command.",
                 color=discord.Color.red()
             )
@@ -338,7 +338,7 @@ class CogManager(commands.Cog):
         # Permission check
         if not await self._check_permission(interaction):
             embed = discord.Embed(
-                title="Access Denied",
+                title="🚫 Access Denied",
                 description="You need administrator permissions to use this command.",
                 color=discord.Color.red()
             )
@@ -378,7 +378,7 @@ class CogManager(commands.Cog):
         
         # Create embed
         embed = discord.Embed(
-            title="Cogs Status",
+            title="📦 Cogs Status",
             description="✓ Active | ✗ Inactive",
             color=discord.Color.blue()
         )

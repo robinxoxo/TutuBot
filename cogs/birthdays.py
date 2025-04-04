@@ -36,14 +36,14 @@ class BirthdayCog(commands.Cog, name="Birthdays"):
         if date is None:
             # View logic
             embed = discord.Embed(
-                title="Birthday Command",
+                title="🎂 Birthday Command",
                 description="This feature is not yet implemented. Stay tuned!",
                 color=discord.Color.blue()
             )
         else:
             # Set logic
             embed = discord.Embed(
-                title="Birthday Command",
+                title="🎂 Birthday Command",
                 description="This feature is not yet implemented. Stay tuned!",
                 color=discord.Color.blue()
             )
