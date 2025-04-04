@@ -210,12 +210,16 @@ class RolesView(ui.View):
             # Add the role selection menu for this category with user's current roles
             self.add_item(RolesSelect(category, self.user_roles))
             self.category = category
+            
+            # Add back button only when in a specific category
+            back_button = ui.Button(label="Back to Categories", style=discord.ButtonStyle.secondary)
+            back_button.callback = self.back_button_callback
+            self.add_item(back_button)
         else:
             # Add the category selection menu
             self.add_item(RoleCategorySelect())
-            
-    @ui.button(label="Back to Categories", style=discord.ButtonStyle.secondary)
-    async def back_button(self, interaction: discord.Interaction, button: ui.Button):
+    
+    async def back_button_callback(self, interaction: discord.Interaction):
         """Return to the category selection menu."""
         view = RolesView()  # Create a new view with just the category selector
         
