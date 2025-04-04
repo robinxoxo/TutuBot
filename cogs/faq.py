@@ -31,7 +31,7 @@ class FaqCog(commands.Cog, name="FAQ"):
             interaction: The Discord interaction
         """
         embed = discord.Embed(
-            title="Command Help",
+            title="📚 Command Help",
             description="Here are the available commands:",
             color=discord.Color.blurple()
         )
@@ -41,15 +41,45 @@ class FaqCog(commands.Cog, name="FAQ"):
         if not command_list:
             embed.description = "No commands seem to be registered currently."
         else:
+            # Group commands into admin and regular categories
+            admin_commands = []
+            regular_commands = []
+            
             for command in sorted(command_list, key=lambda c: c.name):
                 description = getattr(command, 'description', "No description available.")
                 if not description:
                     description = "No description provided."
-                embed.add_field(
-                    name=f"`/{command.name}`",
-                    value=description,
-                    inline=False
-                )
+                
+                if "[Admin]" in description:
+                    admin_commands.append((command, description))
+                else:
+                    regular_commands.append((command, description))
+            
+            # Add regular commands
+            if regular_commands:
+                embed.add_field(name="👥 Regular Commands", value="Commands available to all users:", inline=False)
+                for command, description in regular_commands:
+                    embed.add_field(
+                        name=f"`/{command.name}`",
+                        value=description,
+                        inline=False
+                    )
+            
+            # Add admin commands only if user has admin permissions
+            is_admin = False
+            if interaction.guild:
+                # Get member permissions
+                permissions = interaction.permissions
+                is_admin = permissions.administrator if hasattr(permissions, 'administrator') else False
+                
+            if admin_commands and is_admin:
+                embed.add_field(name="🛡️ Admin Commands", value="Commands restricted to administrators:", inline=False)
+                for command, description in admin_commands:
+                    embed.add_field(
+                        name=f"`/{command.name}`",
+                        value=description,
+                        inline=False
+                    )
 
         embed.set_footer(text="Use the slash (/) to invoke commands. | Bot created by <@robinxoxo>")
         await interaction.response.send_message(embed=embed, ephemeral=True)
