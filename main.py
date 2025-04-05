@@ -58,14 +58,10 @@ class TutuBot(commands.Bot):
             guild = self.get_guild(self.guild_id)
             
             if guild:
-                # Copy global commands to guild commands and sync
+                # Copy global commands to guild and sync (but don't sync globally)
                 self.tree.copy_global_to(guild=guild)
                 synced_guild_commands = await self.tree.sync(guild=guild)
                 self.log.info(f"Synced {len(synced_guild_commands)} commands to guild {guild.id} ({guild.name}).")
-                
-                # Also sync globally for other servers
-                synced_global_commands = await self.tree.sync()
-                self.log.info(f"Synced {len(synced_global_commands)} global commands.")
             else:
                 # If guild not found, just sync globally
                 self.log.warning(f"Guild with ID {self.guild_id} not found. Syncing commands globally only.")
