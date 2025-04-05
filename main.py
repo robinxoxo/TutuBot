@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 load_dotenv()
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
-CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager,cogs.faq,cogs.twitch").split(",")
-GUILD_ID = os.getenv("GUILD_ID", "623694120531001344")  # Default to the specified guild ID
+CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager,cogs.faq").split(",")
+GUILD_ID = os.getenv("GUILD_ID", "141341041394450432")  # Default to the specified guild ID
 
 # Validate variables
 if not all([ADMIN_TOKEN, BOT_OWNER_ID]):
@@ -118,6 +118,7 @@ intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True
 intents.message_content = True
+intents.presences = True  # Required for activity/streaming status tracking
 
 # All cogs to load at startup
 initial_cogs = CORE_COGS.copy()
