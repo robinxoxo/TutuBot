@@ -331,7 +331,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
             # Set footer with timestamp
             embed.set_footer(text=f"Stream started at {discord.utils.utcnow().strftime('%H:%M:%S UTC')}")
             
-            await channel.send(embed=embed)
+            await channel.send(content=f"{member.mention} is now streaming!", embed=embed)
             log.info(f"Sent streaming notification for {member.name}#{member.discriminator} in {channel.guild.name}")
         except Exception as e:
             log.error(f"Error sending streaming notification: {e}")
