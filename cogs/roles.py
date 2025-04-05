@@ -219,9 +219,9 @@ class RolesSelect(ui.Select):
             error_embed.add_field(
                 name="Possible Reasons",
                 value=(
-                    "• The bot's role is lower in the server hierarchy than the roles you're trying to manage\n"
-                    "• The bot lacks 'Manage Roles' permission\n"
-                    "• These specific roles are restricted by server settings"
+                    "• The bot's role is lower in the server hierarchy than it should be.\n"
+                    "• The bot lacks 'Manage Roles' permission.\n"
+                    "• These specific roles are restricted by server settings."
                 ),
                 inline=False
             )
@@ -230,9 +230,9 @@ class RolesSelect(ui.Select):
             error_embed.add_field(
                 name="Solutions",
                 value=(
-                    "• Ask a server admin to move the bot's role higher in the role list\n"
-                    "• Ensure the bot has 'Manage Roles' permission\n"
-                    "• Contact a server admin for assistance"
+                    "• Ask a server admin to move the bot's role higher in the role list.\n"
+                    "• Ensure the bot has 'Manage Roles' permission.\n"
+                    "• Contact a server admin for assistance."
                 ),
                 inline=False
             )
