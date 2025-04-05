@@ -437,6 +437,12 @@ class RoleCog(commands.Cog, name="Roles"):
         updated_roles = []
         failed_roles = []
         
+        # Before processing, explicitly log existing roles with mixed/title case
+        log.info(f"--- Role Sync: Starting role audit ---")
+        for role in interaction.guild.roles:
+            if role.name.lower() != role.name:
+                log.info(f"Found title/mixed case role: '{role.name}' (will convert to: '{role.name.lower()}')")
+        
         # Process all roles defined in configuration
         for role_id, role_info in ROLE_DEFINITIONS.items():
             # Get defined role name and convert to lowercase for storage
@@ -444,10 +450,64 @@ class RoleCog(commands.Cog, name="Roles"):
             role_name = original_role_name.lower()  # Always store as lowercase
             role_color = role_info.get("color", discord.Color.default())
             
-            if role_name not in existing_roles_lower:
+            log.info(f"Processing role definition: '{role_name}'")
+            
+            # Check if role exists (case-insensitive)
+            if role_name in existing_roles_lower:
+                # Role exists, check if it needs to be updated
+                existing_role = existing_roles_lower[role_name]
+                needs_update = False
+                update_fields = []
+                
+                # Debug output for troubleshooting
+                log.info(f"Found existing role: '{existing_role.name}' for '{role_name}'")
+                
+                # Compare names directly - this ensures we catch any case differences
+                if existing_role.name != role_name:
+                    log.info(f"Name case mismatch: '{existing_role.name}' vs '{role_name}'")
+                    needs_update = True
+                    update_fields.append(f"name (from '{existing_role.name}' to '{role_name}')")
+                
+                # Check if color needs to be updated
+                if role_color != existing_role.color:
+                    log.info(f"Color mismatch: {existing_role.color} vs {role_color}")
+                    needs_update = True
+                    update_fields.append("color")
+                
+                if needs_update:
+                    try:
+                        log.info(f"Updating role '{existing_role.name}' to name='{role_name}', color={role_color}")
+                        
+                        # Perform the edit
+                        await existing_role.edit(
+                            name=role_name,  # Force to lowercase
+                            color=role_color,
+                            reason="Auto-updated by role sync command"
+                        )
+                        
+                        # Verify the update
+                        updated_role = interaction.guild.get_role(existing_role.id)
+                        log.info(f"After update: role name='{updated_role.name}'")
+                        
+                        if updated_role.name != role_name:
+                            log.warning(f"Update verification failed! Name is still '{updated_role.name}' instead of '{role_name}'")
+                            failed_roles.append(f"{role_name} (update failed)")
+                        else:
+                            updated_roles.append((updated_role, update_fields))
+                            log.info(f"✓ Role '{role_name}' updated successfully")
+                    
+                    except discord.Forbidden:
+                        log.error(f"Permission denied while updating role '{role_name}'")
+                        failed_roles.append(f"{role_name} (permission denied)")
+                    except Exception as e:
+                        log.exception(f"Error updating role '{role_name}': {e}")
+                        failed_roles.append(f"{role_name} (error: {str(e)})")
+            else:
                 # Create missing role with lowercase name
                 try:
                     category = role_info["category"]
+                    log.info(f"Creating new role: '{role_name}' (category: {category.value})")
+                    
                     role = await interaction.guild.create_role(
                         name=role_name,  # Use lowercase
                         reason=f"Auto-created by role setup command - {category.value}",
@@ -457,33 +517,6 @@ class RoleCog(commands.Cog, name="Roles"):
                 except Exception as e:
                     log.exception(f"Failed to create role {role_name}: {e}")
                     failed_roles.append(role_name)
-            else:
-                # Update existing role if needed
-                existing_role = existing_roles_lower[role_name]
-                needs_update = False
-                update_fields = []
-                
-                # Check if color needs to be updated
-                if role_color != existing_role.color:
-                    needs_update = True
-                    update_fields.append("color")
-                    
-                # Check if name is not lowercase, force to lowercase
-                if role_name != existing_role.name.lower():
-                    needs_update = True
-                    update_fields.append("name")
-                
-                if needs_update:
-                    try:
-                        await existing_role.edit(
-                            name=role_name,  # Always use lowercase name
-                            color=role_color,
-                            reason="Auto-updated by role sync command"
-                        )
-                        updated_roles.append((existing_role, update_fields))
-                    except Exception as e:
-                        log.exception(f"Failed to update role {role_name}: {e}")
-                        failed_roles.append(f"{role_name} (update)")
         
         # Create embed for results
         embed = discord.Embed(
@@ -493,14 +526,14 @@ class RoleCog(commands.Cog, name="Roles"):
         
         # Add fields for created roles
         if created_roles:
-            created_list = "\n".join(f"✓ {role.name.title()}" for role in created_roles)
+            created_list = "\n".join(f"✓ {role.name}" for role in created_roles)
             embed.add_field(name=f"Created {len(created_roles)} Roles", value=created_list, inline=False)
         else:
             embed.add_field(name="No New Roles Created", value="All required roles already exist.", inline=False)
         
         # Add fields for updated roles
         if updated_roles:
-            updated_list = "\n".join(f"✓ {role.name.title()} ({', '.join(fields)})" for role, fields in updated_roles)
+            updated_list = "\n".join(f"✓ {role.name} ({', '.join(fields)})" for role, fields in updated_roles)
             embed.add_field(name=f"Updated {len(updated_roles)} Roles", value=updated_list, inline=False)
         else:
             embed.add_field(name="No Roles Updated", value="All existing roles are up to date.", inline=False)
