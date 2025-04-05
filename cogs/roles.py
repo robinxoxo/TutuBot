@@ -487,14 +487,19 @@ class RoleCog(commands.Cog, name="Roles"):
                         
                         # Verify the update
                         updated_role = interaction.guild.get_role(existing_role.id)
-                        log.info(f"After update: role name='{updated_role.name}'")
                         
-                        if updated_role.name != role_name:
-                            log.warning(f"Update verification failed! Name is still '{updated_role.name}' instead of '{role_name}'")
-                            failed_roles.append(f"{role_name} (update failed)")
+                        if updated_role is None:
+                            log.warning(f"Failed to retrieve the updated role with id {existing_role.id}")
+                            failed_roles.append(f"{role_name} (role not found after update)")
                         else:
-                            updated_roles.append((updated_role, update_fields))
-                            log.info(f"✓ Role '{role_name}' updated successfully")
+                            log.info(f"After update: role name='{updated_role.name}'")
+                            
+                            if updated_role.name != role_name:
+                                log.warning(f"Update verification failed! Name is still '{updated_role.name}' instead of '{role_name}'")
+                                failed_roles.append(f"{role_name} (update failed)")
+                            else:
+                                updated_roles.append((updated_role, update_fields))
+                                log.info(f"✓ Role '{role_name}' updated successfully")
                     
                     except discord.Forbidden:
                         log.error(f"Permission denied while updating role '{role_name}'")
