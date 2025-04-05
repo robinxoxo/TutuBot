@@ -6,6 +6,7 @@ import typing
 from typing import List, Dict, Optional, Any
 
 from utils.role_definitions import RoleCategory, ROLE_DEFINITIONS
+from utils.permission_checks import is_owner_or_administrator
 
 if typing.TYPE_CHECKING:
     from main import TutuBot
@@ -50,9 +51,9 @@ class RoleCategorySelect(ui.Select):
         
         # Count how many roles the user has in this category
         category_roles = {k: v for k, v in ROLE_DEFINITIONS.items() if v["category"] == selected_category}
-        user_role_names = [role.name for role in interaction.user.roles]
+        user_role_names = [role.name.lower() for role in interaction.user.roles]
         
-        user_has_roles = [role for role_id, role in category_roles.items() if role["name"] in user_role_names]
+        user_has_roles = [role for role_id, role in category_roles.items() if role["name"].lower() in user_role_names]
         
         if user_has_roles:
             role_list = ", ".join(f"{role['emoji']} {role['name']}" for role in user_has_roles)
@@ -77,11 +78,12 @@ class RolesSelect(ui.Select):
         
         # Create options
         options = []
-        user_role_names = [role.name for role in user_roles]
+        # Make case-insensitive role name check
+        user_role_names = [role.name.lower() for role in user_roles]
         
         for role_id, role_info in category_roles.items():
-            # Check if user has this role
-            has_role = role_info["name"] in user_role_names
+            # Check if user has this role (case-insensitive)
+            has_role = role_info["name"].lower() in user_role_names
             
             description = role_info["description"]
             if description:
@@ -111,33 +113,40 @@ class RolesSelect(ui.Select):
         
         # Get the user's current roles
         user_roles = interaction.user.roles
-        user_role_names = [role.name for role in user_roles]
+        # Make case-insensitive role name check
+        user_role_names = [role.name.lower() for role in user_roles]
         
         # Get all roles for this category
         category_roles = {k: v for k, v in ROLE_DEFINITIONS.items() if v["category"] == self.category}
-        category_role_names = [info["name"] for info in category_roles.values()]
+        category_role_names = [info["name"].lower() for info in category_roles.values()]
         
-        # Find all server roles matching our category roles
-        server_roles = {role.name: role for role in interaction.guild.roles}
+        # Find all server roles matching our category roles (case-insensitive)
+        server_roles = {}
+        for role in interaction.guild.roles:
+            server_roles[role.name.lower()] = role
         
         # Determine roles to add and remove
         selected_role_names = self.values
+        selected_role_names_lower = [name.lower() for name in selected_role_names]
         roles_to_add = []
         roles_to_remove = []
         missing_roles = []
         
-        # Check which roles should be added
+        # Check which roles should be added (case-insensitive)
         for role_name in selected_role_names:
-            if role_name not in user_role_names and role_name in server_roles:
-                roles_to_add.append(server_roles[role_name])
-            elif role_name not in server_roles:
+            role_name_lower = role_name.lower()
+            if role_name_lower not in user_role_names and role_name_lower in server_roles:
+                roles_to_add.append(server_roles[role_name_lower])
+            elif role_name_lower not in server_roles:
                 missing_roles.append(role_name)
                 
-        # Check which category roles should be removed
+        # Check which category roles should be removed (case-insensitive)
         for role_info in category_roles.values():
             role_name = role_info["name"]
-            if role_name in user_role_names and role_name not in selected_role_names and role_name in server_roles:
-                roles_to_remove.append(server_roles[role_name])
+            role_name_lower = role_name.lower()
+            if role_name_lower in user_role_names and role_name_lower not in selected_role_names_lower:
+                if role_name_lower in server_roles:
+                    roles_to_remove.append(server_roles[role_name_lower])
         
         # Apply role changes
         try:
@@ -269,7 +278,7 @@ class RolesView(ui.View):
         )
         
         # Group user's current roles by category
-        member_role_names = [role.name for role in member.roles]
+        member_role_names = [role.name.lower() for role in member.roles]
         roles_by_category = {}
         
         # Initialize categories for sorting
@@ -278,7 +287,7 @@ class RolesView(ui.View):
             
         # Sort roles into categories
         for role_id, role_info in ROLE_DEFINITIONS.items():
-            if role_info["name"] in member_role_names:
+            if role_info["name"].lower() in member_role_names:
                 category = role_info["category"]
                 roles_by_category[category].append(f"{role_info['emoji']} {role_info['name']}")
         
@@ -351,7 +360,7 @@ class RoleCog(commands.Cog, name="Roles"):
         )
         
         # Group user's current roles by category
-        member_role_names = [role.name for role in member.roles]
+        member_role_names = [role.name.lower() for role in member.roles]
         roles_by_category = {}
         
         # Initialize categories for sorting
@@ -360,7 +369,7 @@ class RoleCog(commands.Cog, name="Roles"):
             
         # Sort roles into categories
         for role_id, role_info in ROLE_DEFINITIONS.items():
-            if role_info["name"] in member_role_names:
+            if role_info["name"].lower() in member_role_names:
                 category = role_info["category"]
                 roles_by_category[category].append(f"{role_info['emoji']} {role_info['name']}")
         
@@ -395,22 +404,19 @@ class RoleCog(commands.Cog, name="Roles"):
         )
     
     @app_commands.command(name="syncroles", description="[Admin] Synchronize server roles with bot configuration")
-    @app_commands.default_permissions(administrator=True)
+    @is_owner_or_administrator()
     async def syncroles_command(self, interaction: discord.Interaction):
         """Admin command to synchronize missing roles with bot configuration."""
         if not interaction.guild or not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
             
-        # Check admin permissions
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("You need administrator permissions to use this command.", ephemeral=True)
-            return
-            
         await interaction.response.defer(ephemeral=True, thinking=True)
         
-        # Get existing roles
-        existing_roles = {role.name: role for role in interaction.guild.roles}
+        # Get existing roles (case-insensitive)
+        existing_roles_lower = {}
+        for role in interaction.guild.roles:
+            existing_roles_lower[role.name.lower()] = role
         
         # Track our changes
         created_roles = []
@@ -420,14 +426,15 @@ class RoleCog(commands.Cog, name="Roles"):
         # Process all roles defined in configuration
         for role_id, role_info in ROLE_DEFINITIONS.items():
             role_name = role_info["name"]
+            role_name_lower = role_name.lower()
             role_color = role_info.get("color", discord.Color.default())
             
-            if role_name not in existing_roles:
+            if role_name_lower not in existing_roles_lower:
                 # Create missing role
                 try:
                     category = role_info["category"]
                     role = await interaction.guild.create_role(
-                        name=role_name,
+                        name=role_name,  # Use the original casing from definition
                         reason=f"Auto-created by role setup command - {category.value}",
                         color=role_color
                     )
@@ -437,7 +444,7 @@ class RoleCog(commands.Cog, name="Roles"):
                     failed_roles.append(role_name)
             else:
                 # Update existing role if needed
-                existing_role = existing_roles[role_name]
+                existing_role = existing_roles_lower[role_name_lower]
                 needs_update = False
                 update_fields = []
                 
@@ -445,10 +452,16 @@ class RoleCog(commands.Cog, name="Roles"):
                 if role_color != existing_role.color:
                     needs_update = True
                     update_fields.append("color")
+                    
+                # Check if name casing needs to be updated
+                if role_name != existing_role.name:
+                    needs_update = True
+                    update_fields.append("name")
                 
                 if needs_update:
                     try:
                         await existing_role.edit(
+                            name=role_name,  # Update to correct casing from definition
                             color=role_color,
                             reason="Auto-updated by role sync command"
                         )
@@ -484,6 +497,24 @@ class RoleCog(commands.Cog, name="Roles"):
         
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+    @syncroles_command.error
+    async def syncroles_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Error handler for the syncroles command."""
+        if isinstance(error, app_commands.errors.CheckFailure):
+            embed = discord.Embed(
+                title="✗ Error",
+                description="You need administrator permissions to use this command.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            embed = discord.Embed(
+                title="✗ Error",
+                description=f"An error occurred: {str(error)}",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            log.error(f"Error in syncroles command: {error}")
 
 async def setup(bot: 'TutuBot'):
     """Sets up the RoleCog."""

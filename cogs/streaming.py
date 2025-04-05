@@ -9,6 +9,9 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 
+# Import our custom permission check
+from utils.permission_checks import is_owner_or_administrator
+
 # For type hinting only
 if typing.TYPE_CHECKING:
     from main import TutuBot
@@ -341,7 +344,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
         await asyncio.sleep(10)
 
     @app_commands.command(name="streaming", description="[Admin] Manage streaming notifications")
-    @app_commands.checks.has_permissions(administrator=True)
+    @is_owner_or_administrator()
     async def streaming(self, interaction: discord.Interaction):
         """Main command for managing streaming notifications.
         
@@ -380,7 +383,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
             interaction: The Discord interaction
             error: The error that occurred
         """
-        if isinstance(error, app_commands.errors.MissingPermissions):
+        if isinstance(error, app_commands.errors.CheckFailure):
             embed = discord.Embed(
                 title="✗ Error",
                 description="You need administrator permissions to use this command.",

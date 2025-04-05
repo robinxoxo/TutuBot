@@ -7,6 +7,12 @@ import logging
 import typing
 import importlib.util
 import inspect
+import sys
+import importlib
+import pkgutil
+from typing import List, Dict, Any, Optional, Union
+
+from utils.permission_checks import admin_check_with_response
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -72,13 +78,7 @@ class CogManager(commands.Cog):
             target: Where to sync commands ("guild" or "global")
         """
         # Permission check
-        if not await self._check_permission(interaction):
-            embed = discord.Embed(
-                title="🚫 Access Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+        if not await admin_check_with_response(interaction):
             return
             
         await interaction.response.defer(ephemeral=True, thinking=True)

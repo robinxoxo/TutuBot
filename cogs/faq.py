@@ -68,15 +68,27 @@ class FaqCog(commands.Cog, name="FAQ"):
                         inline=False
                     )
             
-            # Add admin commands only if user has admin permissions
+            # Add admin commands only if user has admin permissions or is bot owner
             is_admin = False
-            if interaction.guild:
+            is_owner = False
+            
+            # Check if user is bot owner
+            if hasattr(self.bot, 'owner_id') and interaction.user.id == self.bot.owner_id:
+                is_owner = True
+                is_admin = True  # Owner is treated as admin
+            # Check admin permissions
+            elif interaction.guild:
                 # Get member permissions
                 permissions = interaction.permissions
                 is_admin = permissions.administrator if hasattr(permissions, 'administrator') else False
                 
-            if admin_commands and is_admin:
-                embed.add_field(name="🛡️ Admin Commands", value="Commands restricted to administrators:", inline=False)
+            if admin_commands and (is_admin or is_owner):
+                # Special title for bot owner if that's why they can see these commands
+                title = "🛡️ Admin Commands"
+                if is_owner and not is_admin:
+                    title = "🛡️ Admin Commands (visible as bot owner)"
+                    
+                embed.add_field(name=title, value="Commands restricted to administrators:", inline=False)
                 for command, description in admin_commands:
                     embed.add_field(
                         name=f"`/{command.name}`",
