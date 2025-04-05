@@ -209,10 +209,44 @@ class RolesSelect(ui.Select):
                 view=updated_view
             )
         except discord.Forbidden:
-            await interaction.response.send_message(
-                "I don't have permission to manage these roles. Please contact an admin.",
-                ephemeral=True
+            # Create a more detailed error message about role permissions
+            error_embed = discord.Embed(
+                title="✗ Permission Error",
+                description=f"I don't have permission to manage these roles in the '{self.category.value}' category.",
+                color=discord.Color.red()
             )
+            
+            error_embed.add_field(
+                name="Possible Reasons",
+                value=(
+                    "• The bot's role is lower in the server hierarchy than the roles you're trying to manage\n"
+                    "• The bot lacks 'Manage Roles' permission\n"
+                    "• These specific roles are restricted by server settings"
+                ),
+                inline=False
+            )
+            
+            # Add troubleshooting advice
+            error_embed.add_field(
+                name="Solutions",
+                value=(
+                    "• Ask a server admin to move the bot's role higher in the role list\n"
+                    "• Ensure the bot has 'Manage Roles' permission\n"
+                    "• Contact a server admin for assistance"
+                ),
+                inline=False
+            )
+            
+            # Log specific details for debugging
+            role_names = []
+            if roles_to_add:
+                role_names.extend([role.name for role in roles_to_add])
+            if roles_to_remove:
+                role_names.extend([role.name for role in roles_to_remove])
+                
+            log.error(f"Permission denied while managing roles in category '{self.category.value}'. Roles: {', '.join(role_names)}")
+            
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
         except Exception as e:
             log.exception(f"Error managing roles: {e}")
             await interaction.response.send_message(
