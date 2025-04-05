@@ -56,7 +56,8 @@ class RoleCategorySelect(ui.Select):
         user_has_roles = [role for role_id, role in category_roles.items() if role["name"].lower() in user_role_names]
         
         if user_has_roles:
-            role_list = ", ".join(f"{role['emoji']} {role['name']}" for role in user_has_roles)
+            # Display roles with title case for better readability
+            role_list = ", ".join(f"{role['emoji']} {role['name'].lower().title()}" for role in user_has_roles)
             embed.add_field(name="Your Current Roles", value=role_list, inline=False)
         else:
             embed.add_field(name="Your Current Roles", value="None in this category", inline=False)
@@ -90,12 +91,17 @@ class RolesSelect(ui.Select):
                 description = f"{description}"
             else:
                 description = "Click to toggle role"
-                
+            
+            # Use title case for display but lowercase for value
+            display_name = role_info["name"].lower().title()
+            role_value = role_info["name"].lower()
+            
             options.append(
                 discord.SelectOption(
-                    label=role_info["name"],
+                    label=display_name,
                     emoji=role_info["emoji"],
                     description=description,
+                    value=role_value,
                     default=has_role
                 )
             )
@@ -125,28 +131,27 @@ class RolesSelect(ui.Select):
         for role in interaction.guild.roles:
             server_roles[role.name.lower()] = role
         
-        # Determine roles to add and remove
+        # All self.values are already lowercase from the SelectOption value
         selected_role_names = self.values
-        selected_role_names_lower = [name.lower() for name in selected_role_names]
         roles_to_add = []
         roles_to_remove = []
         missing_roles = []
         
         # Check which roles should be added (case-insensitive)
         for role_name in selected_role_names:
-            role_name_lower = role_name.lower()
-            if role_name_lower not in user_role_names and role_name_lower in server_roles:
-                roles_to_add.append(server_roles[role_name_lower])
-            elif role_name_lower not in server_roles:
-                missing_roles.append(role_name)
+            if role_name not in user_role_names and role_name in server_roles:
+                roles_to_add.append(server_roles[role_name])
+            elif role_name not in server_roles:
+                # Get display name for missing role
+                display_name = role_name.title()
+                missing_roles.append(display_name)
                 
         # Check which category roles should be removed (case-insensitive)
         for role_info in category_roles.values():
-            role_name = role_info["name"]
-            role_name_lower = role_name.lower()
-            if role_name_lower in user_role_names and role_name_lower not in selected_role_names_lower:
-                if role_name_lower in server_roles:
-                    roles_to_remove.append(server_roles[role_name_lower])
+            role_name = role_info["name"].lower()
+            if role_name in user_role_names and role_name not in selected_role_names:
+                if role_name in server_roles:
+                    roles_to_remove.append(server_roles[role_name])
         
         # Apply role changes
         try:
@@ -168,17 +173,22 @@ class RolesSelect(ui.Select):
             # Get current roles in this category using updated member
             current_roles = []
             for role in updated_member.roles:
-                if any(role.name == info["name"] for info in category_roles.values()):
-                    emoji = next((v["emoji"] for k, v in ROLE_DEFINITIONS.items() if v["name"] == role.name), "")
-                    current_roles.append(f"{emoji} {role.name}")
+                role_name_lower = role.name.lower()
+                for info in category_roles.values():
+                    if role_name_lower == info["name"].lower():
+                        emoji = info["emoji"]
+                        # Display in title case for better readability
+                        display_name = role.name.lower().title()
+                        current_roles.append(f"{emoji} {display_name}")
+                        break
                     
             # Add fields for added, removed, and current roles
             if roles_to_add:
-                added_list = "\n".join(f"✓ {role.name}" for role in roles_to_add)
+                added_list = "\n".join(f"✓ {role.name.title()}" for role in roles_to_add)
                 embed.add_field(name="Added Roles", value=added_list, inline=True)
                 
             if roles_to_remove:
-                removed_list = "\n".join(f"✗ {role.name}" for role in roles_to_remove)
+                removed_list = "\n".join(f"✗ {role.name.title()}" for role in roles_to_remove)
                 embed.add_field(name="Removed Roles", value=removed_list, inline=True)
                 
             if missing_roles:
@@ -289,7 +299,9 @@ class RolesView(ui.View):
         for role_id, role_info in ROLE_DEFINITIONS.items():
             if role_info["name"].lower() in member_role_names:
                 category = role_info["category"]
-                roles_by_category[category].append(f"{role_info['emoji']} {role_info['name']}")
+                # Display role name in title case for better readability
+                display_name = role_info["name"].lower().title()
+                roles_by_category[category].append(f"{role_info['emoji']} {display_name}")
         
         # Add fields for current roles by category
         has_roles = False
@@ -371,7 +383,9 @@ class RoleCog(commands.Cog, name="Roles"):
         for role_id, role_info in ROLE_DEFINITIONS.items():
             if role_info["name"].lower() in member_role_names:
                 category = role_info["category"]
-                roles_by_category[category].append(f"{role_info['emoji']} {role_info['name']}")
+                # Display role name in title case for better readability
+                display_name = role_info["name"].lower().title()
+                roles_by_category[category].append(f"{role_info['emoji']} {display_name}")
         
         # Add fields for current roles by category
         has_roles = False
@@ -425,16 +439,17 @@ class RoleCog(commands.Cog, name="Roles"):
         
         # Process all roles defined in configuration
         for role_id, role_info in ROLE_DEFINITIONS.items():
-            role_name = role_info["name"]
-            role_name_lower = role_name.lower()
+            # Get defined role name and convert to lowercase for storage
+            original_role_name = role_info["name"]
+            role_name = original_role_name.lower()  # Always store as lowercase
             role_color = role_info.get("color", discord.Color.default())
             
-            if role_name_lower not in existing_roles_lower:
-                # Create missing role
+            if role_name not in existing_roles_lower:
+                # Create missing role with lowercase name
                 try:
                     category = role_info["category"]
                     role = await interaction.guild.create_role(
-                        name=role_name,  # Use the original casing from definition
+                        name=role_name,  # Use lowercase
                         reason=f"Auto-created by role setup command - {category.value}",
                         color=role_color
                     )
@@ -444,7 +459,7 @@ class RoleCog(commands.Cog, name="Roles"):
                     failed_roles.append(role_name)
             else:
                 # Update existing role if needed
-                existing_role = existing_roles_lower[role_name_lower]
+                existing_role = existing_roles_lower[role_name]
                 needs_update = False
                 update_fields = []
                 
@@ -453,15 +468,15 @@ class RoleCog(commands.Cog, name="Roles"):
                     needs_update = True
                     update_fields.append("color")
                     
-                # Check if name casing needs to be updated
-                if role_name != existing_role.name:
+                # Check if name is not lowercase, force to lowercase
+                if role_name != existing_role.name.lower():
                     needs_update = True
                     update_fields.append("name")
                 
                 if needs_update:
                     try:
                         await existing_role.edit(
-                            name=role_name,  # Update to correct casing from definition
+                            name=role_name,  # Always use lowercase name
                             color=role_color,
                             reason="Auto-updated by role sync command"
                         )
@@ -478,21 +493,21 @@ class RoleCog(commands.Cog, name="Roles"):
         
         # Add fields for created roles
         if created_roles:
-            created_list = "\n".join(f"✓ {role.name}" for role in created_roles)
+            created_list = "\n".join(f"✓ {role.name.title()}" for role in created_roles)
             embed.add_field(name=f"Created {len(created_roles)} Roles", value=created_list, inline=False)
         else:
             embed.add_field(name="No New Roles Created", value="All required roles already exist.", inline=False)
         
         # Add fields for updated roles
         if updated_roles:
-            updated_list = "\n".join(f"✓ {role.name} ({', '.join(fields)})" for role, fields in updated_roles)
+            updated_list = "\n".join(f"✓ {role.name.title()} ({', '.join(fields)})" for role, fields in updated_roles)
             embed.add_field(name=f"Updated {len(updated_roles)} Roles", value=updated_list, inline=False)
         else:
             embed.add_field(name="No Roles Updated", value="All existing roles are up to date.", inline=False)
             
         # Add fields for failed roles
         if failed_roles:
-            failed_list = "\n".join(f"✗ {role}" for role in failed_roles)
+            failed_list = "\n".join(f"✗ {role.title() if isinstance(role, str) else role}" for role in failed_roles)
             embed.add_field(name=f"Failed Operations ({len(failed_roles)})", value=failed_list, inline=False)
         
         await interaction.followup.send(embed=embed, ephemeral=True)
