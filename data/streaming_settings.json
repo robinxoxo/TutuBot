@@ -1,3 +1,8 @@
 {
-    "settings": {}
-} 
+    "settings": {
+        "141341041394450432": {
+            "notification_channel": 149775298886369280,
+            "enabled": true
+        }
+    }
+}

@@ -5,11 +5,14 @@ import discord
 # Role categories and their emoji+name mappings
 class RoleCategory(Enum):
     """Categories for organizing roles in the selection UI."""
+    SERVER_PINGS = "Server Pings"
     CREATIVE = "Creative Roles"
     MMO = "MMO Games"
+    ACTION_RPG = "Action RPGs"
     MULTIPLAYER = "Multiplayer Games"  
     NINTENDO = "Nintendo Games"
     PARTY = "Party Games & Social"
+    PRONOUNS = "Pronouns"
 
 # Role definitions with emoji and category
 # Format: 
@@ -21,6 +24,15 @@ class RoleCategory(Enum):
 #     "color": discord.Color (optional)
 # }
 ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+    # Server ping roles
+    "events": {"name": "Events", "emoji": "🎉", "category": RoleCategory.SERVER_PINGS, "description": "Game Nights, Movie/TV Nights, Contests & Other Events."},
+    "news": {"name": "News", "emoji": "📰", "category": RoleCategory.SERVER_PINGS, "description": "Announcements, updates, and important information."},
+    "live": {"name": "Live", "emoji": "🔴", "category": RoleCategory.SERVER_PINGS, "description": "Live Streams, Twitch, YouTube, etc."},
+    "live2": {"name": "Community Live", "emoji": "🔴", "category": RoleCategory.SERVER_PINGS, "description": "Get notified when community members go is live."},
+    "youtube": {"name": "YouTube", "emoji": "📺", "category": RoleCategory.SERVER_PINGS, "description": "YouTube channels and content."},
+    "podcast": {"name": "Podcast", "emoji": "🎙️", "category": RoleCategory.SERVER_PINGS, "description": "Notifications for all podcasts featuring CaptainTutu."},
+    "ping_me": {"name": "Ping Me", "emoji": "❗", "category": RoleCategory.SERVER_PINGS, "description": "Ping me for anything and everything."},
+
     # Creative roles - Each with a distinct color
     "content_creator": {"name": "Content Creator", "emoji": "🎤", "category": RoleCategory.CREATIVE, "description": "Twitch, YouTube, podcast, etc.", "color": discord.Color.from_rgb(175, 68, 117)},
     "artist": {"name": "Artist", "emoji": "🎨", "category": RoleCategory.CREATIVE, "description": "GFX design, digital art, traditional art, etc.", "color": discord.Color.from_rgb(161, 255, 178)},
@@ -34,7 +46,12 @@ ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "eso": {"name": "The Elder Scrolls Online", "emoji": "📜", "category": RoleCategory.MMO, "description": ""},
     "gw2": {"name": "Guild Wars 2", "emoji": "🐉", "category": RoleCategory.MMO, "description": ""},
     "bdo": {"name": "Black Desert Online", "emoji": "⚔️", "category": RoleCategory.MMO, "description": ""},
-    
+
+    # Action RPGs - Default color (no color specified)
+    "d4": {"name": "Diablo 4", "emoji": "😈", "category": RoleCategory.ACTION_RPG, "description": ""},
+    "poe2": {"name": "Path of Exile 2", "emoji": "⚔️", "category": RoleCategory.ACTION_RPG, "description": ""},
+    "last_epoch": {"name": "Last Epoch", "emoji": "⏳", "category": RoleCategory.ACTION_RPG, "description": ""},
+   
     # Multiplayer Games - Default color (no color specified)
     "minecraft": {"name": "Minecraft", "emoji": "⛏️", "category": RoleCategory.MULTIPLAYER, "description": ""},
     "cod": {"name": "Call of Duty", "emoji": "🔫", "category": RoleCategory.MULTIPLAYER, "description": "MP, Zombies, Warzone"},
@@ -59,6 +76,13 @@ ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "fall_guys": {"name": "Fall Guys", "emoji": "👑", "category": RoleCategory.PARTY, "description": ""},
     "jackbox": {"name": "Jackbox Party Pack", "emoji": "🥳", "category": RoleCategory.PARTY, "description": "Franchise"},
     "watch_party": {"name": "Watch Party", "emoji": "🍿", "category": RoleCategory.PARTY, "description": "Movies & TV"},
+
+    # Pronouns - Default color (no color specified)
+    "he": {"name": "He/Him", "emoji": "🧑", "category": RoleCategory.PRONOUNS, "description": ""},
+    "she": {"name": "She/Her", "emoji": "👧", "category": RoleCategory.PRONOUNS, "description": ""},
+    "they": {"name": "They/Them", "emoji": "🧑‍🤝‍🧑", "category": RoleCategory.PRONOUNS, "description": ""},
+    "any": {"name": "Any Pronouns", "emoji": "🧑‍🤝‍🧑", "category": RoleCategory.PRONOUNS, "description": ""},
+    "ask": {"name": "Ask Pronouns", "emoji": "❓", "category": RoleCategory.PRONOUNS, "description": ""},
 }
 
 # To add a new role:
