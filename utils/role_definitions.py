@@ -27,9 +27,9 @@ ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     # Server ping roles
     "events": {"name": "Events", "emoji": "🎉", "category": RoleCategory.SERVER_PINGS, "description": "Game Nights, Movie/TV Nights, Contests & Other Events."},
     "news": {"name": "News", "emoji": "📰", "category": RoleCategory.SERVER_PINGS, "description": "Announcements, updates, and important information."},
-    "live": {"name": "Live", "emoji": "🔴", "category": RoleCategory.SERVER_PINGS, "description": "Live Streams, Twitch, YouTube, etc."},
+    "live": {"name": "Live", "emoji": "🔴", "category": RoleCategory.SERVER_PINGS, "description": "CaptainTutu Live Streams, Twitch, YouTube, etc."},
     "live2": {"name": "Community Live", "emoji": "🔴", "category": RoleCategory.SERVER_PINGS, "description": "Get notified when community members go is live."},
-    "youtube": {"name": "YouTube", "emoji": "📺", "category": RoleCategory.SERVER_PINGS, "description": "YouTube channels and content."},
+    "youtube": {"name": "YouTube", "emoji": "📺", "category": RoleCategory.SERVER_PINGS, "description": "CaptainTutuYouTube channels and content."},
     "podcast": {"name": "Podcast", "emoji": "🎙️", "category": RoleCategory.SERVER_PINGS, "description": "Notifications for all podcasts featuring CaptainTutu."},
     "ping_me": {"name": "Ping Me", "emoji": "❗", "category": RoleCategory.SERVER_PINGS, "description": "Ping me for anything and everything."},
 
