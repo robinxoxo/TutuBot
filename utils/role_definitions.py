@@ -22,11 +22,11 @@ class RoleCategory(Enum):
 # }
 ROLE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     # Creative roles - Each with a distinct color
-    "content_creator": {"name": "Content Creator", "emoji": "🎤", "category": RoleCategory.CREATIVE, "description": "Twitch, YouTube, podcast, etc.", "color": discord.Color.orange()},
-    "artist": {"name": "Artist", "emoji": "🎨", "category": RoleCategory.CREATIVE, "description": "GFX design, digital art, traditional art, etc.", "color": discord.Color.purple()},
-    "developer": {"name": "Developer", "emoji": "👨‍💻", "category": RoleCategory.CREATIVE, "description": "Video game, mobile, web, etc.", "color": discord.Color.blue()},
-    "photographer": {"name": "Photographer", "emoji": "📸", "category": RoleCategory.CREATIVE, "description": "IRL and virtual", "color": discord.Color.teal()},
-    "tech_expert": {"name": "Tech Expert", "emoji": "👨‍🔧", "category": RoleCategory.CREATIVE, "description": "Hardware, software, troubleshooting", "color": discord.Color.dark_gold()},
+    "content_creator": {"name": "Content Creator", "emoji": "🎤", "category": RoleCategory.CREATIVE, "description": "Twitch, YouTube, podcast, etc.", "color": discord.Color.from_rgb(175, 68, 117)},
+    "artist": {"name": "Artist", "emoji": "🎨", "category": RoleCategory.CREATIVE, "description": "GFX design, digital art, traditional art, etc.", "color": discord.Color.from_rgb(161, 255, 178)},
+    "developer": {"name": "Developer", "emoji": "👨‍💻", "category": RoleCategory.CREATIVE, "description": "Video game, mobile, web, etc.", "color": discord.Color.from_rgb(238, 107, 107)},
+    "photographer": {"name": "Photographer", "emoji": "📸", "category": RoleCategory.CREATIVE, "description": "IRL and virtual", "color": discord.Color.from_rgb(248, 224, 93)},
+    "tech_expert": {"name": "Tech Expert", "emoji": "👨‍🔧", "category": RoleCategory.CREATIVE, "description": "Hardware, software, troubleshooting", "color": discord.Color.blue()},
     
     # MMO Games - Default color (no color specified)
     "ffxiv": {"name": "Final Fantasy XIV", "emoji": "💎", "category": RoleCategory.MMO, "description": ""},
