@@ -331,7 +331,18 @@ class StreamingCog(commands.Cog, name="Streaming"):
             # Set footer with timestamp
             embed.set_footer(text=f"Stream started at {discord.utils.utcnow().strftime('%H:%M:%S UTC')}")
             
-            await channel.send(content=f"{member.mention} is now streaming!", embed=embed)
+            # Determine which role to mention based on who is streaming
+            captain_tutu_id = 141339919304884224
+            role_mention = ""
+            if member.id == captain_tutu_id:
+                # Mention Captain Tutu's specific role
+                role_mention = "<@&762198424929959946>"
+                log.info(f"Captain Tutu is streaming, mentioning Captain Tutu role")
+            else:
+                # Mention the general streaming role for everyone else
+                role_mention = "<@&1358193327572389970>"
+            
+            await channel.send(content=f"{member.mention} is now streaming! {role_mention}", embed=embed)
             log.info(f"Sent streaming notification for {member.name}#{member.discriminator} in {channel.guild.name}")
         except Exception as e:
             log.error(f"Error sending streaming notification: {e}")
