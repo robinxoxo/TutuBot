@@ -118,7 +118,7 @@ class InfoCog(commands.Cog, name="Info"):
             inline=False
         )
         
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         
     @app_commands.command(name="userinfo", description="Show information about a user")
     @app_commands.describe(user="The user to get information about (defaults to yourself)")
@@ -252,7 +252,7 @@ class InfoCog(commands.Cog, name="Info"):
                     inline=True
                 )
         
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="avatar", description="Show a user's avatar")
     @app_commands.describe(user="The user whose avatar to show (defaults to yourself)")
@@ -302,7 +302,7 @@ class InfoCog(commands.Cog, name="Info"):
         else:
             embed.description = "This user has no custom avatar."
             
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="roleinfo", description="Show information about a role")
     @app_commands.describe(role="The role to get information about")
@@ -405,7 +405,7 @@ class InfoCog(commands.Cog, name="Info"):
                 inline=False
             )
         
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="botinfo", description="Show information about the bot")
     async def show_bot_info(self, interaction: discord.Interaction):
@@ -498,7 +498,7 @@ class InfoCog(commands.Cog, name="Info"):
             inline=True
         )
         
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the InfoCog.
