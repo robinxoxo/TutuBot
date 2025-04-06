@@ -2,7 +2,7 @@
 
 ## Description
 
-The `/sync` command synchronizes slash commands to make them available in the Discord interface. This is necessary when commands are added, removed, or modified in the bot's code, and **must be run after the bot starts** since commands are not automatically synced on startup.
+The `/sync` command synchronizes slash commands to make them available in the Discord interface. This is necessary when commands are added, removed, or modified in the bot's code. Commands are automatically synced to the configured guild on startup, but **global syncing must be done manually** with this command.
 
 ## Usage
 
@@ -35,11 +35,12 @@ Sync commands globally:
 
 ## Notes
 
-- **Important**: Commands are not automatically synced on bot startup - you must use this command after starting the bot
+- Commands are automatically synced to the configured guild on bot startup
+- **Global syncing** is not done automatically and requires running `/sync global`
 - Guild syncing is recommended for testing new commands as changes appear immediately
 - Global syncing affects all servers where the bot is installed but takes longer to propagate
 - This command is essential after adding new cogs or updating command definitions
-- If the bot appears online but slash commands aren't working, this command needs to be run
+- If slash commands aren't working in servers other than the main guild, use `/sync global`
 
 ## Related Commands
 
