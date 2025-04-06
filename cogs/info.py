@@ -408,7 +408,7 @@ class InfoCog(commands.Cog, name="Info"):
         await interaction.response.send_message(embed=embed, ephemeral=False)
     
     @app_commands.command(name="botinfo", description="Show information about the bot")
-    async def bot_info(self, interaction: discord.Interaction):
+    async def show_bot_info(self, interaction: discord.Interaction):
         """Displays information about the bot.
         
         Args:
