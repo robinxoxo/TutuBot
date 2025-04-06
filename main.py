@@ -52,22 +52,6 @@ class TutuBot(commands.Bot):
             except Exception as e:
                 self.log.exception(f"Failed to load cog {cog_path}: {e}")
 
-        # Sync commands to specific guild for instant updates
-        try:
-            # Get the guild object
-            guild = self.get_guild(self.guild_id)
-            
-            if guild:
-                # Copy global commands to guild and sync (but don't sync globally)
-                self.tree.copy_global_to(guild=guild)
-                synced_guild_commands = await self.tree.sync(guild=guild)
-                self.log.info(f"Synced {len(synced_guild_commands)} commands to guild {guild.id} ({guild.name}).")
-            else:
-                # If guild not found, don't sync globally - require manual sync
-                self.log.warning(f"Guild with ID {self.guild_id} not found. Use /sync global to sync commands globally.")
-        except Exception as e:
-             self.log.exception(f"Failed to sync commands: {e}")
-
     async def on_message(self, message: discord.Message) -> None:
         """Event triggered when a message is received.
         

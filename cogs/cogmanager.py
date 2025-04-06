@@ -88,86 +88,45 @@ class CogManager(commands.Cog):
                 if interaction.guild is None:
                     await interaction.followup.send("This command must be used in a server for guild syncing.", ephemeral=True)
                     return
-                    
+                 
                 # Sync to the current guild
                 self.bot.tree.copy_global_to(guild=interaction.guild)
                 commands = await self.bot.tree.sync(guild=interaction.guild)
                 count = len(commands)
-                await interaction.followup.send(
-                    f"Successfully synced {count} commands to this server. They should be available immediately.",
-                    ephemeral=True
+                
+                embed = discord.Embed(
+                    title="🔄 Commands Synced",
+                    description=f"Successfully synced {count} commands to this server.\nThey should be available immediately.",
+                    color=discord.Color.green()
                 )
+  
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 log.info(f"Synced {count} commands to guild {interaction.guild.id} ({interaction.guild.name})")
             else:
                 # Global sync - takes longer to propagate
                 commands = await self.bot.tree.sync()
                 count = len(commands)
-                await interaction.followup.send(
-                    f"Successfully synced {count} commands globally. This may take up to an hour to propagate to all servers.",
-                    ephemeral=True
+                
+                embed = discord.Embed(
+                    title="🔄 Commands Synced",
+                    description=f"Successfully synced {count} commands globally.",
+                    color=discord.Color.green()
                 )
+                
+                embed.add_field(
+                    name="Note",
+                    value="This may take up to an hour to propagate to all servers.",
+                    inline=False
+                )
+                    
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 log.info(f"Synced {count} commands globally")
                 
         except Exception as e:
             log.exception(f"Error syncing commands: {e}")
-            await interaction.followup.send(
-                f"An error occurred while syncing commands: {str(e)}",
-                ephemeral=True
-            )
-
-    @app_commands.command(name="clearsync", description="[Admin] Clear all slash commands without resyncing.")
-    async def clear_sync_commands(self, interaction: discord.Interaction, target: str = "guild"):
-        """Clears all commands without resyncing to remove outdated commands.
-        
-        Args:
-            interaction: The interaction object
-            target: Where to clear commands ("guild" or "global")
-        """
-        # Permission check
-        if not await admin_check_with_response(interaction):
-            return
-            
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        try:
-            if target.lower() == "guild":
-                if interaction.guild is None:
-                    await interaction.followup.send("This command must be used in a server for guild command clearing.", ephemeral=True)
-                    return
-                
-                # Clear commands for this guild
-                self.bot.tree.clear_commands(guild=interaction.guild)
-                
-                embed = discord.Embed(
-                    title="🔄 Commands Cleared",
-                    description="All slash commands have been cleared for this server.\n\nTo restore commands, use `/sync guild`.",
-                    color=discord.Color.blue()
-                )
-                await interaction.followup.send(embed=embed, ephemeral=True)
-                log.info(f"Cleared commands from guild {interaction.guild.id} ({interaction.guild.name})")
-            
-            else:
-                # Clear all global commands
-                self.bot.tree.clear_commands(guild=None)
-                
-                embed = discord.Embed(
-                    title="🔄 Global Commands Cleared",
-                    description="All global slash commands have been cleared.\n\nTo restore commands, use `/sync global`.",
-                    color=discord.Color.blue()
-                )
-                embed.add_field(
-                    name="Note",
-                    value="Changes may take up to an hour to propagate to all servers.",
-                    inline=False
-                )
-                await interaction.followup.send(embed=embed, ephemeral=True)
-                log.info(f"Cleared global commands")
-                
-        except Exception as e:
-            log.exception(f"Error in clearsync command: {e}")
             embed = discord.Embed(
                 title="✗ Error",
-                description=f"An error occurred while clearing commands: {str(e)}",
+                description=f"An error occurred while syncing commands: {str(e)}",
                 color=discord.Color.red()
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
