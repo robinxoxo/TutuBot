@@ -101,13 +101,7 @@ class FaqCog(commands.Cog, name="FAQ"):
                     )
 
         embed.set_footer(text="Use the slash (/) to invoke commands")
-        
-        # Add creator info as a field instead of in footer
-        embed.add_field(
-            name="🤖 Bot Creator",
-            value="<@148682563861479425>",
-            inline=False
-        )
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot: 'TutuBot'):
