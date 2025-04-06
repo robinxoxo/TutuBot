@@ -36,7 +36,13 @@ class FaqCog(commands.Cog, name="FAQ"):
             color=discord.Color.blurple()
         )
 
-        command_list = self.bot.tree.get_commands()
+        # Get all commands from the bot's command tree
+        command_list = []
+        for cmd in self.bot.tree.get_commands():
+            command_list.append(cmd)
+            
+        # Sort commands alphabetically
+        command_list.sort(key=lambda x: x.name)
         
         # Filter out the help command itself
         command_list = [cmd for cmd in command_list if cmd.name != "help"]
@@ -48,7 +54,7 @@ class FaqCog(commands.Cog, name="FAQ"):
             admin_commands = []
             regular_commands = []
             
-            for command in sorted(command_list, key=lambda c: c.name):
+            for command in command_list:
                 description = getattr(command, 'description', "No description available.")
                 if not description:
                     description = "No description provided."
@@ -77,10 +83,8 @@ class FaqCog(commands.Cog, name="FAQ"):
                 is_owner = True
                 is_admin = True  # Owner is treated as admin
             # Check admin permissions
-            elif interaction.guild:
-                # Get member permissions
-                permissions = interaction.permissions
-                is_admin = permissions.administrator if hasattr(permissions, 'administrator') else False
+            elif interaction.guild and isinstance(interaction.user, discord.Member):
+                is_admin = interaction.user.guild_permissions.administrator
                 
             if admin_commands and (is_admin or is_owner):
                 # Special title for bot owner if that's why they can see these commands
@@ -96,7 +100,7 @@ class FaqCog(commands.Cog, name="FAQ"):
                         inline=False
                     )
 
-        embed.set_footer(text=f"Use the slash (/) to invoke commands")
+        embed.set_footer(text="Use the slash (/) to invoke commands")
         
         # Add creator info as a field instead of in footer
         embed.add_field(
