@@ -16,7 +16,7 @@ load_dotenv()
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
 CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager").split(",")
-GUILD_ID = os.getenv("GUILD_ID", "141341041394450432")  # Default to the specified guild ID
+GUILD_ID = os.getenv("GUILD_ID", 0)  # Default to the specified guild ID
 
 # Validate variables
 if not all([ADMIN_TOKEN, BOT_OWNER_ID]):
@@ -43,7 +43,7 @@ class TutuBot(commands.Bot):
         self.log = logging.getLogger("TutuBot")
 
     async def setup_hook(self) -> None:
-        """Loads initial cogs and syncs global commands."""
+        """Loads initial cogs without syncing commands."""
         self.log.info(f"Attempting to load initial cogs: {self.initial_cogs}")
         for cog_path in self.initial_cogs:
             try:
@@ -52,23 +52,9 @@ class TutuBot(commands.Bot):
             except Exception as e:
                 self.log.exception(f"Failed to load cog {cog_path}: {e}")
 
-        # Sync commands to specific guild for instant updates
-        try:
-            # Get the guild object
-            guild = self.get_guild(self.guild_id)
-            
-            if guild:
-                # Copy global commands to guild and sync (but don't sync globally)
-                self.tree.copy_global_to(guild=guild)
-                synced_guild_commands = await self.tree.sync(guild=guild)
-                self.log.info(f"Synced {len(synced_guild_commands)} commands to guild {guild.id} ({guild.name}).")
-            else:
-                # If guild not found, just sync globally
-                self.log.warning(f"Guild with ID {self.guild_id} not found. Syncing commands globally only.")
-                synced_commands = await self.tree.sync()
-                self.log.info(f"Synced {len(synced_commands)} global commands.")
-        except Exception as e:
-             self.log.exception(f"Failed to sync commands: {e}")
+        # Commands are intentionally not synced on startup
+        # Use the /sync command to manually sync commands when needed
+        self.log.info("Cogs loaded. Use the /sync command to sync application commands.")
 
     async def on_message(self, message: discord.Message) -> None:
         """Event triggered when a message is received.
@@ -124,8 +110,6 @@ if "cogs.roles" not in initial_cogs:
     initial_cogs.append("cogs.roles")
 if "cogs.streaming" not in initial_cogs:
     initial_cogs.append("cogs.streaming")
-if "cogs.quotes" not in initial_cogs:
-    initial_cogs.append("cogs.quotes")
 if "cogs.info" not in initial_cogs:
     initial_cogs.append("cogs.info")
 if "cogs.faq" not in initial_cogs:
