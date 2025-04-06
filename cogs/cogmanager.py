@@ -51,7 +51,7 @@ class CogManager(commands.Cog):
         self.bot = bot
         self.core_cogs = getattr(self.bot, 'initial_cogs', [])
         # Ensure only cogmanager and faq are treated as core
-        self.actual_core_cogs = ['cogs.cogmanager', 'cogs.faq']
+        self.actual_core_cogs = ['cogs.cogmanager']
 
     async def _check_permission(self, interaction: discord.Interaction) -> bool:
         """Check if the user has permission to use admin commands.

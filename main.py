@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 load_dotenv()
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
-CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager,cogs.faq").split(",")
+CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager").split(",")
 GUILD_ID = os.getenv("GUILD_ID", "141341041394450432")  # Default to the specified guild ID
 
 # Validate variables
@@ -128,6 +128,8 @@ if "cogs.quotes" not in initial_cogs:
     initial_cogs.append("cogs.quotes")
 if "cogs.info" not in initial_cogs:
     initial_cogs.append("cogs.info")
+if "cogs.faq" not in initial_cogs:
+    initial_cogs.append("cogs.faq")
 
 # Create bot
 bot = TutuBot(
