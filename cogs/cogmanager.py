@@ -115,6 +115,80 @@ class CogManager(commands.Cog):
                 ephemeral=True
             )
 
+    @app_commands.command(name="clearsync", description="[Admin] Clear and re-sync all slash commands.")
+    async def clear_sync_commands(self, interaction: discord.Interaction, target: str = "guild"):
+        """Clears all commands and then re-syncs them to remove outdated commands.
+        
+        Args:
+            interaction: The interaction object
+            target: Where to sync commands ("guild" or "global")
+        """
+        # Permission check
+        if not await admin_check_with_response(interaction):
+            return
+            
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        
+        try:
+            if target.lower() == "guild":
+                if interaction.guild is None:
+                    await interaction.followup.send("This command must be used in a server for guild syncing.", ephemeral=True)
+                    return
+                
+                # Clear commands for this guild
+                self.bot.tree.clear_commands(guild=interaction.guild)
+                await interaction.followup.send(
+                    "✓ Commands have been cleared for this server. Now re-syncing...",
+                    ephemeral=True
+                )
+                
+                # Copy global commands to guild and sync
+                self.bot.tree.copy_global_to(guild=interaction.guild)
+                commands = await self.bot.tree.sync(guild=interaction.guild)
+                count = len(commands)
+                
+                embed = discord.Embed(
+                    title="🔄 Command Sync Complete",
+                    description=f"Successfully synced {count} commands to this server. All outdated commands have been removed.",
+                    color=discord.Color.green()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                log.info(f"Cleared and re-synced {count} commands to guild {interaction.guild.id} ({interaction.guild.name})")
+            
+            else:
+                # Clear all global commands
+                self.bot.tree.clear_commands(guild=None)
+                await interaction.followup.send(
+                    "✓ Global commands have been cleared. Now re-syncing...",
+                    ephemeral=True
+                )
+                
+                # Sync global commands
+                commands = await self.bot.tree.sync()
+                count = len(commands)
+                
+                embed = discord.Embed(
+                    title="🔄 Command Sync Complete",
+                    description=f"Successfully synced {count} commands globally. This may take up to an hour to propagate to all servers.",
+                    color=discord.Color.green()
+                )
+                embed.add_field(
+                    name="Note",
+                    value="All outdated commands have been removed from Discord's system.",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                log.info(f"Cleared and re-synced {count} commands globally")
+                
+        except Exception as e:
+            log.exception(f"Error in clearsync command: {e}")
+            embed = discord.Embed(
+                title="✗ Error",
+                description=f"An error occurred while syncing commands: {str(e)}",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
     @app_commands.command(name="load", description="[Admin] Loads a specified cog.")
     async def load_cog(self, interaction: discord.Interaction, cog_name: str):
         """Loads a non-core cog. Provide the name without 'cogs.' prefix."""
