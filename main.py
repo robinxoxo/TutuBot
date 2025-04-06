@@ -122,6 +122,10 @@ if "cogs.birthdays" not in initial_cogs:
     initial_cogs.append("cogs.birthdays")
 if "cogs.roles" not in initial_cogs:
     initial_cogs.append("cogs.roles")
+if "cogs.streaming" not in initial_cogs:
+    initial_cogs.append("cogs.streaming")
+if "cogs.quotes" not in initial_cogs:
+    initial_cogs.append("cogs.quotes")
 
 # Create bot
 bot = TutuBot(
