@@ -126,6 +126,8 @@ if "cogs.streaming" not in initial_cogs:
     initial_cogs.append("cogs.streaming")
 if "cogs.quotes" not in initial_cogs:
     initial_cogs.append("cogs.quotes")
+if "cogs.info" not in initial_cogs:
+    initial_cogs.append("cogs.info")
 
 # Create bot
 bot = TutuBot(
