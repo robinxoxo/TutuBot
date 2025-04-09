@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord.ui import Modal, TextInput, Button, View, Select
 from datetime import datetime
+from discord import app_commands
 
 class EventCreationModal(Modal):
     def __init__(self, cog):
@@ -148,17 +149,17 @@ class EventScheduler(commands.Cog):
         self.bot = bot
         self.events = {}  # Store events in memory
 
-    @commands.command(name="events")
-    @commands.has_permissions(administrator=True)
-    async def events(self, ctx: commands.Context):
-        """Command to create or list events. Only accessible to admins."""
+    @app_commands.command(name="events", description="Manage and view events.")
+    @app_commands.default_permissions(administrator=True)
+    async def events(self, interaction: discord.Interaction):
+        """Slash command to create or list events. Only accessible to admins."""
         if not self.events:
             embed = discord.Embed(
                 title="📅 Scheduled Events",
                 description="No events have been scheduled yet.",
                 color=discord.Color.blue()
             )
-            await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         embed = discord.Embed(
@@ -173,21 +174,17 @@ class EventScheduler(commands.Cog):
                 inline=False
             )
         view = EventAdminView(event_name, self)
-        await ctx.send(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
         modal = EventCreationModal(self)
-        await ctx.send("Opening event creation modal...", ephemeral=True)
-        await ctx.send_modal(modal)
+        await interaction.followup.send("Opening event creation modal...", ephemeral=True)
+        await interaction.followup.send_modal(modal)
 
-    @events.error
-    async def events_error(self, ctx: commands.Context, error):
-        if isinstance(error, commands.MissingPermissions):
-            embed = discord.Embed(
-                title="📅 ✗ Permission Denied",
-                description="You do not have the required permissions to create an event.",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
+    async def cog_load(self):
+        self.bot.tree.add_command(self.events)
+
+    async def cog_unload(self):
+        self.bot.tree.remove_command("events")
 
     async def signup_event(self, interaction: discord.Interaction, event_name: str):
         """Sign up for an event."""
