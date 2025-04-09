@@ -148,16 +148,16 @@ class EventScheduler(commands.Cog):
         self.bot = bot
         self.events = {}  # Store events in memory
 
-    @commands.command(name="create_event")
+    @commands.command(name="events")
     @commands.has_permissions(administrator=True)
-    async def create_event(self, ctx: commands.Context):
+    async def events(self, ctx: commands.Context):
         """Command to create a new event. Only accessible to admins."""
         modal = EventCreationModal(self)
         await ctx.send("Opening event creation modal...", ephemeral=True)
         await ctx.send_modal(modal)
 
-    @create_event.error
-    async def create_event_error(self, ctx: commands.Context, error):
+    @events.error
+    async def events_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(
                 title="📅 ✗ Permission Denied",
@@ -166,8 +166,8 @@ class EventScheduler(commands.Cog):
             )
             await ctx.send(embed=embed)
 
-    @commands.command(name="events")
-    async def events(self, ctx: commands.Context):
+    @commands.command(name="list_events")
+    async def list_events(self, ctx: commands.Context):
         if not self.events:
             embed = discord.Embed(
                 title="📅 Scheduled Events",
