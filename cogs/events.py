@@ -149,7 +149,7 @@ class EventScheduler(commands.Cog):
         self.bot = bot
         self.events = {}  # Store events in memory
 
-    @app_commands.command(name="events", description="Manage and view events.")
+    @app_commands.command(name="events", description="[Admin] Manage and view events.")
     @app_commands.default_permissions(administrator=True)
     async def events(self, interaction: discord.Interaction):
         """Slash command to create or list events. Only accessible to admins."""
@@ -184,7 +184,7 @@ class EventScheduler(commands.Cog):
         self.bot.tree.add_command(self.events)
 
     async def cog_unload(self):
-        self.bot.tree.remove_command("events")
+        self.bot.tree.remove_command(self.events.name)
 
     async def signup_event(self, interaction: discord.Interaction, event_name: str):
         """Sign up for an event."""
