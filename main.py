@@ -110,8 +110,6 @@ if "cogs.info" not in initial_cogs:
     initial_cogs.append("cogs.info")
 if "cogs.faq" not in initial_cogs:
     initial_cogs.append("cogs.faq")
-if "cogs.event_scheduler" not in initial_cogs:
-    initial_cogs.append("cogs.event_scheduler")
 if "cogs.events" not in initial_cogs:
     initial_cogs.append("cogs.events")
 
