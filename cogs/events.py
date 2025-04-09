@@ -151,7 +151,30 @@ class EventScheduler(commands.Cog):
     @commands.command(name="events")
     @commands.has_permissions(administrator=True)
     async def events(self, ctx: commands.Context):
-        """Command to create a new event. Only accessible to admins."""
+        """Command to create or list events. Only accessible to admins."""
+        if not self.events:
+            embed = discord.Embed(
+                title="📅 Scheduled Events",
+                description="No events have been scheduled yet.",
+                color=discord.Color.blue()
+            )
+            await ctx.send(embed=embed)
+            return
+
+        embed = discord.Embed(
+            title="📅 Scheduled Events",
+            description="Select an event to manage or create a new one:",
+            color=discord.Color.blue()
+        )
+        for event_name in self.events.keys():
+            embed.add_field(
+                name=f"• {event_name}",
+                value="Use the buttons below to manage this event.",
+                inline=False
+            )
+        view = EventAdminView(event_name, self)
+        await ctx.send(embed=embed, view=view)
+
         modal = EventCreationModal(self)
         await ctx.send("Opening event creation modal...", ephemeral=True)
         await ctx.send_modal(modal)
@@ -165,31 +188,6 @@ class EventScheduler(commands.Cog):
                 color=discord.Color.red()
             )
             await ctx.send(embed=embed)
-
-    @commands.command(name="list_events")
-    async def list_events(self, ctx: commands.Context):
-        if not self.events:
-            embed = discord.Embed(
-                title="📅 Scheduled Events",
-                description="No events have been scheduled yet.",
-                color=discord.Color.blue()
-            )
-            await ctx.send(embed=embed)
-            return
-
-        embed = discord.Embed(
-            title="📅 Scheduled Events",
-            description="Select an event to manage:",
-            color=discord.Color.blue()
-        )
-        for event_name in self.events.keys():
-            embed.add_field(
-                name=f"• {event_name}",
-                value="Use the buttons below to manage this event.",
-                inline=False
-            )
-        view = EventAdminView(event_name, self)
-        await ctx.send(embed=embed, view=view)
 
     async def signup_event(self, interaction: discord.Interaction, event_name: str):
         """Sign up for an event."""
