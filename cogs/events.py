@@ -330,7 +330,15 @@ class EventSchedulerCog(commands.Cog):
         # Register the view for persistence
         self.bot.add_view(view)
         
-        await interaction.followup.send(embed=embed, view=view)
+        # Send the message
+        event_message = await interaction.followup.send(embed=embed, view=view)
+        
+        # Store the initial message in the posted tracking
+        channel_id = str(interaction.channel_id)
+        self.events[event_id]["posted"][channel_id] = event_message.id
+        
+        # Save again with the message ID
+        self.save_events()
     
     async def process_role_mentions(self, guild, description):
         """Process @ symbols in description to convert to role mentions"""
