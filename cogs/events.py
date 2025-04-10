@@ -68,10 +68,11 @@ class EventListSelect(Select):
             options = [discord.SelectOption(label="No events scheduled", value="none")]
         else:
             for event_id, event_data in cog.events.items():
-                event_date = event_data["date"].strftime("%Y-%m-%d %H:%M")
+                unix_timestamp = int(event_data["date"].timestamp())
+                event_time_display = f"{event_data['name']} (<t:{unix_timestamp}:R>)"
                 options.append(
                     discord.SelectOption(
-                        label=f"{event_data['name']} - {event_date}",
+                        label=event_time_display[:100],  # Discord has a 100 char limit for labels
                         value=str(event_id),
                         description=event_data["description"][:50] + "..." if len(event_data["description"]) > 50 else event_data["description"]
                     )
@@ -169,10 +170,14 @@ class EventSchedulerCog(commands.Cog):
             timestamp=event_data['date']
         )
         
-        # Format date for display
+        # Format date for display using Discord's timestamp feature
+        unix_timestamp = int(event_data['date'].timestamp())
         embed.add_field(
             name="📆 Date & Time", 
-            value=event_data['date'].strftime("%A, %B %d, %Y at %I:%M %p"), 
+            value=(
+                f"• Full: <t:{unix_timestamp}:F>\n"
+                f"• Relative: <t:{unix_timestamp}:R>"
+            ), 
             inline=False
         )
         
