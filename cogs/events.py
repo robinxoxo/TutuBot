@@ -96,6 +96,8 @@ class EventSignupView(View):
         super().__init__(timeout=None)
         self.cog = cog
         self.event_id = event_id
+        # Set a custom ID for the view to make it persistent
+        self.custom_id = f"event_signup_{event_id}"
         
         # Add buttons for different statuses without emojis or special colors
         statuses = [
@@ -106,17 +108,25 @@ class EventSignupView(View):
         ]
         
         for button_label, style, status in statuses:
-            self.add_item(StatusButton(button_label, style, status, self.cog, self.event_id))
+            # Create a custom_id for the button for persistence
+            custom_id = f"event_{event_id}_{status.lower()}"
+            button = StatusButton(button_label, style, status, self.cog, self.event_id, custom_id=custom_id)
+            self.add_item(button)
 
 class StatusButton(Button):
-    def __init__(self, label, style, status, cog, event_id):
-        super().__init__(label=label, style=style)
+    def __init__(self, label, style, status, cog, event_id, custom_id=None):
+        super().__init__(label=label, style=style, custom_id=custom_id)
         self.status = status
         self.cog = cog
         self.event_id = event_id
         
     async def callback(self, interaction: discord.Interaction):
         user = interaction.user
+        
+        # Verify that the event still exists
+        if self.event_id not in self.cog.events:
+            await interaction.response.send_message("This event no longer exists.", ephemeral=True)
+            return
         
         # Remove user from all statuses first
         for status in ["Attending", "Late", "Tentative", "Absence"]:
@@ -191,6 +201,16 @@ class EventSchedulerCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("EventSchedulerCog is ready.")
+        # Register persistent views for events when the bot starts
+        self.register_persistent_views()
+        
+    def register_persistent_views(self):
+        """Register persistent views for all existing events"""
+        for event_id in self.events.keys():
+            # Create a persistent view for each event
+            view = EventSignupView(self, event_id)
+            self.bot.add_view(view)
+            print(f"Registered persistent view for event {event_id}")
 
     @app_commands.command(name="events", description="[Admin] Manage events and sign-ups")
     @app_commands.checks.has_permissions(administrator=True)
@@ -253,6 +273,9 @@ class EventSchedulerCog(commands.Cog):
         embed = self.create_event_embed(event_id)
         view = EventSignupView(self, event_id)
         
+        # Register the view for persistence
+        self.bot.add_view(view)
+        
         await interaction.followup.send(embed=embed, view=view)
     
     async def process_role_mentions(self, guild, description):
@@ -311,42 +334,6 @@ class EventSchedulerCog(commands.Cog):
             embed.add_field(name=f"{emoji} {status} ({len(user_list)})", value=value, inline=True)
         
         return embed
-
-    @app_commands.command(name="viewevents", description="View upcoming events and sign up")
-    async def viewevents(self, interaction: discord.Interaction):
-        """Command to view upcoming events (available to all users)"""
-        if not self.events:
-            await interaction.response.send_message("There are no events scheduled at this time.", ephemeral=True)
-            return
-            
-        # Get the next upcoming event (closest to current time)
-        current_time = datetime.datetime.now()
-        
-        # Filter only future events
-        future_events = {
-            event_id: event_data for event_id, event_data in self.events.items() 
-            if event_data["date"] > current_time
-        }
-        
-        if not future_events:
-            await interaction.response.send_message("There are no upcoming events scheduled.", ephemeral=True)
-            return
-            
-        # Sort by closest date
-        sorted_events = sorted(future_events.items(), key=lambda x: x[1]["date"])
-        
-        # Get the closest event
-        next_event_id, _ = sorted_events[0]
-        
-        # Create the embed and view for the event
-        event_embed = self.create_event_embed(next_event_id)
-        view = EventSignupView(self, next_event_id)
-        
-        # Add navigation if there's more than one event
-        if len(sorted_events) > 1:
-            view.add_item(Button(label=f"1/{len(sorted_events)}", style=discord.ButtonStyle.secondary, disabled=True))
-        
-        await interaction.response.send_message(embed=event_embed, view=view)
 
 async def setup(bot):
     await bot.add_cog(EventSchedulerCog(bot))
