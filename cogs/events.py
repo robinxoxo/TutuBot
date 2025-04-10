@@ -351,7 +351,7 @@ class EventSchedulerCog(commands.Cog):
             
         embed = discord.Embed(
             title="📅 Event Manager",
-            description="• Create new events\n• Post events to current channel\n• Delete events\n• Sign up for events",
+            description="• Create new events\n• Post events to current channel\n• Delete events",
             color=discord.Color.blurple()
         )
         
