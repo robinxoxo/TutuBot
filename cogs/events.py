@@ -7,24 +7,28 @@ from discord.ui import Button, View, Modal, TextInput, Select
 class EventCreateModal(Modal, title="Create Event"):
     event_name = TextInput(label="Event Name", placeholder="Enter event name", required=True)
     event_date = TextInput(label="Date (DD-MM-YYYY)", placeholder="31-12-2023", required=True)
-    event_time = TextInput(label="Time (HH:MM AM/PM)", placeholder="8:00 PM", required=True)
+    event_time = TextInput(label="Time (HH:MM AM/PM)", placeholder="8:00 pm", required=True)
     event_description = TextInput(label="Description", placeholder="Event details...", required=True, style=discord.TextStyle.paragraph)
     
     async def on_submit(self, interaction: discord.Interaction):
         try:
-            # Parse time with AM/PM
-            time_parts = self.event_time.value.strip().split()
-            if len(time_parts) != 2:
-                await interaction.response.send_message("Invalid time format! Please use 'HH:MM AM' or 'HH:MM PM'", ephemeral=True)
-                return
-                
-            time_value, am_pm_value = time_parts
-            am_pm_value = am_pm_value.upper()
+            # More flexible parsing for time with AM/PM
+            time_input = self.event_time.value.strip().lower()
             
-            if am_pm_value not in ["AM", "PM"]:
-                await interaction.response.send_message("Please use either 'AM' or 'PM' for the time period.", ephemeral=True)
+            # Extract AM/PM
+            if "am" in time_input:
+                am_pm_value = "AM"
+                time_value = time_input.replace("am", "").strip()
+            elif "pm" in time_input:
+                am_pm_value = "PM"
+                time_value = time_input.replace("pm", "").strip()
+            else:
+                await interaction.response.send_message("Please specify AM or PM in your time input.", ephemeral=True)
                 return
                 
+            # Clean up any remaining spaces or other characters
+            time_value = time_value.strip()
+            
             # Convert 12-hour time to 24-hour time
             hour, minute = map(int, time_value.split(':'))
             if am_pm_value == "PM" and hour < 12:
@@ -215,7 +219,7 @@ class EventSchedulerCog(commands.Cog):
                 if user:
                     user_list.append(user.mention)
             
-            value = "\n".join(user_list) if user_list else "• No one yet"
+            value = "\n".join(user_list) if user_list else ""
             embed.add_field(name=f"{emoji} {status} ({len(user_list)})", value=value, inline=True)
         
         return embed
