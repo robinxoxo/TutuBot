@@ -1,0 +1,15 @@
+{
+    "1744309211": {
+        "name": "testing persistent events between bot restarts",
+        "date": 1744345800.0,
+        "description": "<@&1357568198408536088> testsssssss",
+        "signups": {
+            "Attending": [
+                148682563861479425
+            ],
+            "Late": [],
+            "Tentative": [],
+            "Absence": []
+        }
+    }
+}
