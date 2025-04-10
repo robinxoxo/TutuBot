@@ -143,11 +143,46 @@ class StatusButton(Button):
         updated_embed = self.cog.create_event_embed(self.event_id)
         await interaction.response.edit_message(embed=updated_embed)
 
+class EventPostSelect(Select):
+    def __init__(self, cog):
+        self.cog = cog
+        options = []
+        
+        if not cog.events:
+            options = [discord.SelectOption(label="No events scheduled", value="none")]
+        else:
+            for event_id, event_data in cog.events.items():
+                unix_timestamp = int(event_data["date"].timestamp())
+                event_time_display = f"{event_data['name']} (<t:{unix_timestamp}:R>)"
+                options.append(
+                    discord.SelectOption(
+                        label=event_time_display[:100],  # Discord has a 100 char limit for labels
+                        value=str(event_id),
+                        description=event_data["description"][:50] + "..." if len(event_data["description"]) > 50 else event_data["description"]
+                    )
+                )
+        
+        super().__init__(placeholder="Select an event to post", options=options, min_values=1, max_values=1)
+    
+    async def callback(self, interaction: discord.Interaction):
+        if self.values[0] == "none":
+            await interaction.response.send_message("No events are currently scheduled.", ephemeral=True)
+            return
+            
+        event_id = int(self.values[0])
+        await self.cog.post_event(interaction, event_id)
+
+class EventPostView(View):
+    def __init__(self, cog):
+        super().__init__()
+        self.cog = cog
+        self.add_item(EventPostSelect(cog))
+
 class EventSchedulerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.events = {}  # Dictionary to store event data
-        # Format: {event_id: {"name": str, "date": datetime, "description": str, "signups": {"status": [user_ids]}}}
+        # Format: {event_id: {"name": str, "date": datetime, "description": str, "signups": {"status": [user_ids]}, "posted": {channel_id: message_id}}}
         self.data_folder = "data"
         self.events_file = os.path.join(self.data_folder, "events.json")
         
@@ -168,7 +203,8 @@ class EventSchedulerCog(commands.Cog):
                 "name": event_data["name"],
                 "date": event_data["date"].timestamp(),  # Store as Unix timestamp
                 "description": event_data["description"],
-                "signups": event_data["signups"]
+                "signups": event_data["signups"],
+                "posted": event_data.get("posted", {})  # Store posted messages info
             }
         
         # Save to file
@@ -193,7 +229,8 @@ class EventSchedulerCog(commands.Cog):
                     "name": event_data["name"],
                     "date": datetime.datetime.fromtimestamp(event_data["date"]),
                     "description": event_data["description"],
-                    "signups": event_data["signups"]
+                    "signups": event_data["signups"],
+                    "posted": event_data.get("posted", {})  # Load posted messages info
                 }
         except Exception as e:
             print(f"Error loading events data: {e}")
@@ -223,14 +260,15 @@ class EventSchedulerCog(commands.Cog):
             
         embed = discord.Embed(
             title="📅 Event Manager",
-            description="• Create new events\n• Sign up for events",
+            description="• Create new events\n• Post events to current channel\n• Sign up for events",
             color=discord.Color.blurple()
         )
         
-        # Create button for creating events
+        # Create buttons for event management
         view = View()
         
         create_button = Button(label="Create Event", style=discord.ButtonStyle.secondary)
+        post_button = Button(label="Post Event", style=discord.ButtonStyle.secondary)
         
         async def create_callback(interaction):
             # Check if user is admin or bot owner
@@ -242,9 +280,24 @@ class EventSchedulerCog(commands.Cog):
             modal.callback = self.create_event_callback
             await interaction.response.send_modal(modal)
             
+        async def post_callback(interaction):
+            # Check if user is admin or bot owner
+            if not interaction.user.guild_permissions.administrator and interaction.user.id != self.bot.owner_id:
+                await interaction.response.send_message("You don't have permission to post events.", ephemeral=True)
+                return
+                
+            if not self.events:
+                await interaction.response.send_message("There are no events to post.", ephemeral=True)
+                return
+                
+            view = EventPostView(self)
+            await interaction.response.send_message("Select an event to post in this channel:", view=view, ephemeral=True)
+            
         create_button.callback = create_callback
+        post_button.callback = post_callback
         
         view.add_item(create_button)
+        view.add_item(post_button)
         
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
@@ -264,7 +317,8 @@ class EventSchedulerCog(commands.Cog):
                 "Late": [],
                 "Tentative": [],
                 "Absence": []
-            }
+            },
+            "posted": {}  # Initialize empty posted messages tracking
         }
         
         # Save updated events data
@@ -334,6 +388,46 @@ class EventSchedulerCog(commands.Cog):
             embed.add_field(name=f"{emoji} {status} ({len(user_list)})", value=value, inline=True)
         
         return embed
+
+    async def post_event(self, interaction, event_id):
+        """Post an event to the current channel"""
+        if event_id not in self.events:
+            await interaction.response.send_message("This event no longer exists.", ephemeral=True)
+            return
+            
+        # Check if the event is already posted in this channel
+        channel_id = str(interaction.channel_id)
+        event_data = self.events[event_id]
+        posted_info = event_data.get("posted", {})
+        
+        # Initialize posted data if it doesn't exist
+        if "posted" not in event_data:
+            event_data["posted"] = {}
+            
+        # Try to delete the previous message if it exists
+        if channel_id in posted_info:
+            try:
+                prev_message = await interaction.channel.fetch_message(int(posted_info[channel_id]))
+                await prev_message.delete()
+                print(f"Deleted previous event post: {posted_info[channel_id]}")
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+                print(f"Could not delete previous event message: {e}")
+        
+        # Create the embed and view for the event
+        embed = self.create_event_embed(event_id)
+        view = EventSignupView(self, event_id)
+        
+        # Register the view for persistence
+        self.bot.add_view(view)
+        
+        # Post the event
+        event_message = await interaction.channel.send(embed=embed, view=view)
+        
+        # Store the message ID
+        event_data["posted"][channel_id] = event_message.id
+        self.save_events()
+        
+        await interaction.response.send_message(f"Event posted successfully!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EventSchedulerCog(bot))
