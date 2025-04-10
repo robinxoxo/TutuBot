@@ -99,12 +99,12 @@ class EventSignupView(View):
         # Set a custom ID for the view to make it persistent
         self.custom_id = f"event_signup_{event_id}"
         
-        # Add buttons for different statuses without emojis or special colors
+        # Add buttons for different statuses with emojis but keep secondary color
         statuses = [
-            ("Attending", discord.ButtonStyle.secondary, "Attending"),
-            ("Late", discord.ButtonStyle.secondary, "Late"),
-            ("Tentative", discord.ButtonStyle.secondary, "Tentative"),
-            ("Absence", discord.ButtonStyle.secondary, "Absence")
+            ("👍 Attending", discord.ButtonStyle.secondary, "Attending"),
+            ("🕒 Late", discord.ButtonStyle.secondary, "Late"),
+            ("🤔 Tentative", discord.ButtonStyle.secondary, "Tentative"),
+            ("🚫 Absence", discord.ButtonStyle.secondary, "Absence")
         ]
         
         for button_label, style, status in statuses:
