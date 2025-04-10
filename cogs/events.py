@@ -178,6 +178,97 @@ class EventPostView(View):
         self.cog = cog
         self.add_item(EventPostSelect(cog))
 
+class EventDeleteSelect(Select):
+    def __init__(self, cog):
+        self.cog = cog
+        options = []
+        
+        if not cog.events:
+            options = [discord.SelectOption(label="No events scheduled", value="none")]
+        else:
+            for event_id, event_data in cog.events.items():
+                unix_timestamp = int(event_data["date"].timestamp())
+                event_time_display = f"{event_data['name']} (<t:{unix_timestamp}:R>)"
+                options.append(
+                    discord.SelectOption(
+                        label=event_time_display[:100],  # Discord has a 100 char limit for labels
+                        value=str(event_id),
+                        description=event_data["description"][:50] + "..." if len(event_data["description"]) > 50 else event_data["description"]
+                    )
+                )
+        
+        super().__init__(placeholder="Select an event to delete", options=options, min_values=1, max_values=1)
+    
+    async def callback(self, interaction: discord.Interaction):
+        if self.values[0] == "none":
+            await interaction.response.send_message("No events are currently scheduled.", ephemeral=True)
+            return
+            
+        event_id = int(self.values[0])
+        
+        # Show confirmation
+        view = EventDeleteConfirmView(self.cog, event_id)
+        await interaction.response.send_message(
+            f"⚠️ Are you sure you want to delete this event? This action cannot be undone.",
+            view=view,
+            ephemeral=True
+        )
+
+class EventDeleteView(View):
+    def __init__(self, cog):
+        super().__init__()
+        self.cog = cog
+        self.add_item(EventDeleteSelect(cog))
+
+class EventDeleteConfirmView(View):
+    def __init__(self, cog, event_id):
+        super().__init__()
+        self.cog = cog
+        self.event_id = event_id
+        
+        # Add confirm and cancel buttons
+        confirm_button = Button(label="Confirm Delete", style=discord.ButtonStyle.danger)
+        cancel_button = Button(label="Cancel", style=discord.ButtonStyle.secondary)
+        
+        confirm_button.callback = self.confirm_callback
+        cancel_button.callback = self.cancel_callback
+        
+        self.add_item(confirm_button)
+        self.add_item(cancel_button)
+    
+    async def confirm_callback(self, interaction: discord.Interaction):
+        if self.event_id not in self.cog.events:
+            await interaction.response.send_message("This event no longer exists.", ephemeral=True)
+            return
+        
+        # Get the event data
+        event_data = self.cog.events[self.event_id]
+        event_name = event_data["name"]
+        
+        # Try to delete all posted messages
+        if "posted" in event_data:
+            deleted_count = 0
+            for channel_id, message_id in event_data["posted"].items():
+                try:
+                    channel = self.cog.bot.get_channel(int(channel_id))
+                    if channel:
+                        message = await channel.fetch_message(int(message_id))
+                        await message.delete()
+                        deleted_count += 1
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+                    print(f"Could not delete event message in channel {channel_id}: {e}")
+        
+        # Delete the event from dictionary
+        del self.cog.events[self.event_id]
+        
+        # Save updated events data
+        self.cog.save_events()
+        
+        await interaction.response.send_message(f"✅ Event '{event_name}' has been deleted.", ephemeral=True)
+    
+    async def cancel_callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message("Event deletion canceled.", ephemeral=True)
+
 class EventSchedulerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -260,7 +351,7 @@ class EventSchedulerCog(commands.Cog):
             
         embed = discord.Embed(
             title="📅 Event Manager",
-            description="• Create new events\n• Post events to current channel\n• Sign up for events",
+            description="• Create new events\n• Post events to current channel\n• Delete events\n• Sign up for events",
             color=discord.Color.blurple()
         )
         
@@ -269,6 +360,7 @@ class EventSchedulerCog(commands.Cog):
         
         create_button = Button(label="Create Event", style=discord.ButtonStyle.secondary)
         post_button = Button(label="Post Event", style=discord.ButtonStyle.secondary)
+        delete_button = Button(label="Delete Event", style=discord.ButtonStyle.secondary)
         
         async def create_callback(interaction):
             # Check if user is admin or bot owner
@@ -292,12 +384,27 @@ class EventSchedulerCog(commands.Cog):
                 
             view = EventPostView(self)
             await interaction.response.send_message("Select an event to post in this channel:", view=view, ephemeral=True)
+        
+        async def delete_callback(interaction):
+            # Check if user is admin or bot owner
+            if not interaction.user.guild_permissions.administrator and interaction.user.id != self.bot.owner_id:
+                await interaction.response.send_message("You don't have permission to delete events.", ephemeral=True)
+                return
+                
+            if not self.events:
+                await interaction.response.send_message("There are no events to delete.", ephemeral=True)
+                return
+                
+            view = EventDeleteView(self)
+            await interaction.response.send_message("Select an event to delete:", view=view, ephemeral=True)
             
         create_button.callback = create_callback
         post_button.callback = post_callback
+        delete_button.callback = delete_callback
         
         view.add_item(create_button)
         view.add_item(post_button)
+        view.add_item(delete_button)
         
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
