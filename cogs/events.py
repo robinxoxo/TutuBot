@@ -6,16 +6,16 @@ from discord.ui import Button, View, Modal, TextInput, Select
 
 class EventCreateModal(Modal, title="Create Event"):
     event_name = TextInput(label="Event Name", placeholder="Enter event name", required=True)
-    event_date = TextInput(label="Date (YYYY-MM-DD)", placeholder="2023-12-31", required=True)
+    event_date = TextInput(label="Date (DD-MM-YYYY)", placeholder="31-12-2023", required=True)
     event_time = TextInput(label="Time (12-hour format HH:MM)", placeholder="8:00", required=True)
-    am_pm = TextInput(label="AM or PM", placeholder="Enter AM or PM", required=True)
+    am_pm = TextInput(label="am or pm", placeholder="Enter am or pm", required=True)
     event_description = TextInput(label="Description", placeholder="Event details...", required=True, style=discord.TextStyle.paragraph)
     
     async def on_submit(self, interaction: discord.Interaction):
         try:
             am_pm_value = self.am_pm.value.strip().upper()
             if am_pm_value not in ["AM", "PM"]:
-                await interaction.response.send_message("Please enter either 'AM' or 'PM' for the time period.", ephemeral=True)
+                await interaction.response.send_message("Please enter either 'am' or 'pm' for the time period.", ephemeral=True)
                 return
                 
             # Convert 12-hour time to 24-hour time
@@ -26,10 +26,10 @@ class EventCreateModal(Modal, title="Create Event"):
                 hour = 0
                 
             time_str = f"{hour:02d}:{minute:02d}"
-            date_obj = datetime.datetime.strptime(f"{self.event_date.value} {time_str}", "%Y-%m-%d %H:%M")
+            date_obj = datetime.datetime.strptime(f"{self.event_date.value} {time_str}", "%d-%m-%Y %H:%M")
             await interaction.response.defer()
         except ValueError:
-            await interaction.response.send_message("Invalid date or time format! Please use YYYY-MM-DD for date and HH:MM for time.", ephemeral=True)
+            await interaction.response.send_message("Invalid date or time format! Please use DD-MM-YYYY for date and HH:MM for time.", ephemeral=True)
             return
             
         await self.callback(interaction, self.event_name.value, date_obj, self.event_description.value)
