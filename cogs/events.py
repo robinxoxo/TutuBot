@@ -37,10 +37,53 @@ class EventCreateModal(Modal, title="Create Event"):
                 hour = 0
                 
             time_str = f"{hour:02d}:{minute:02d}"
-            date_obj = datetime.datetime.strptime(f"{self.event_date.value} {time_str}", "%d-%m-%Y %H:%M")
+            
+            # Flexible date parsing
+            date_input = self.event_date.value.strip()
+            
+            # Detect separator (-, /, .)
+            separator = None
+            for sep in ['-', '/', '.']:
+                if sep in date_input:
+                    separator = sep
+                    break
+                    
+            if not separator:
+                await interaction.response.send_message("Invalid date format! Please use a separator like - or / between date parts.", ephemeral=True)
+                return
+                
+            # Split date parts
+            date_parts = date_input.split(separator)
+            if len(date_parts) != 3:
+                await interaction.response.send_message("Date must have 3 parts: day, month, and year!", ephemeral=True)
+                return
+                
+            # Try to determine format and convert to DD, MM, YYYY
+            if len(date_parts[0]) == 4:  # YYYY-MM-DD format
+                year, month, day = date_parts
+            elif len(date_parts[2]) == 4:  # DD-MM-YYYY or MM-DD-YYYY format
+                # If first number > 12, it's likely DD-MM-YYYY
+                first_num = int(date_parts[0])
+                second_num = int(date_parts[1])
+                
+                if first_num > 12:  # Must be a day
+                    day, month, year = date_parts
+                elif second_num > 12:  # First must be month, second must be day
+                    month, day, year = date_parts
+                else:  # Ambiguous, assume DD-MM-YYYY as per original format
+                    day, month, year = date_parts
+            else:
+                await interaction.response.send_message("Year must be 4 digits (YYYY)!", ephemeral=True)
+                return
+                
+            # Standardize to DD-MM-YYYY for datetime parsing
+            standard_date = f"{int(day):02d}-{int(month):02d}-{year}"
+            
+            # Parse the datetime
+            date_obj = datetime.datetime.strptime(f"{standard_date} {time_str}", "%d-%m-%Y %H:%M")
             await interaction.response.defer()
-        except ValueError:
-            await interaction.response.send_message("Invalid date or time format! Please use DD-MM-YYYY for date and HH:MM AM/PM for time.", ephemeral=True)
+        except ValueError as e:
+            await interaction.response.send_message(f"Invalid date or time format! Please check your input. Error: {str(e)}", ephemeral=True)
             return
             
         await self.callback(interaction, self.event_name.value, date_obj, self.event_description.value)
