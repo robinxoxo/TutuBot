@@ -133,43 +133,6 @@ class StatusButton(Button):
         updated_embed = self.cog.create_event_embed(self.event_id)
         await interaction.response.edit_message(embed=updated_embed)
 
-class EventListSelect(Select):
-    def __init__(self, cog):
-        self.cog = cog
-        options = []
-        
-        if not cog.events:
-            options = [discord.SelectOption(label="No events scheduled", value="none")]
-        else:
-            for event_id, event_data in cog.events.items():
-                unix_timestamp = int(event_data["date"].timestamp())
-                event_time_display = f"{event_data['name']} (<t:{unix_timestamp}:R>)"
-                options.append(
-                    discord.SelectOption(
-                        label=event_time_display[:100],  # Discord has a 100 char limit for labels
-                        value=str(event_id),
-                        description=event_data["description"][:50] + "..." if len(event_data["description"]) > 50 else event_data["description"]
-                    )
-                )
-        
-        super().__init__(placeholder="Select an event to view", options=options, min_values=1, max_values=1)
-    
-    async def callback(self, interaction: discord.Interaction):
-        if self.values[0] == "none":
-            await interaction.response.send_message("No events are currently scheduled.", ephemeral=True)
-            return
-            
-        event_id = int(self.values[0])
-        event_embed = self.cog.create_event_embed(event_id)
-        view = EventSignupView(self.cog, event_id)
-        await interaction.response.send_message(embed=event_embed, view=view)
-
-class EventManageView(View):
-    def __init__(self, cog):
-        super().__init__()
-        self.cog = cog
-        self.add_item(EventListSelect(cog))
-
 class EventSchedulerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -229,35 +192,39 @@ class EventSchedulerCog(commands.Cog):
     async def on_ready(self):
         print("EventSchedulerCog is ready.")
 
-    @app_commands.command(name="events", description="Manage events and sign-ups")
+    @app_commands.command(name="events", description="[Admin] Manage events and sign-ups")
+    @app_commands.checks.has_permissions(administrator=True)
     async def events(self, interaction: discord.Interaction):
-        """Command to manage events and sign-ups"""
+        """Command to manage events and sign-ups (Admin only)"""
+        # Check if user is admin or bot owner
+        if not interaction.user.guild_permissions.administrator and interaction.user.id != self.bot.owner_id:
+            await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+            return
+            
         embed = discord.Embed(
             title="📅 Event Manager",
-            description="• Create new events\n• View existing events\n• Sign up for events",
-            color=discord.Color.blue()
+            description="• Create new events\n• Sign up for events",
+            color=discord.Color.blurple()
         )
         
-        # Create buttons for creating and viewing events
+        # Create button for creating events
         view = View()
         
         create_button = Button(label="Create Event", style=discord.ButtonStyle.secondary)
-        view_button = Button(label="View Events", style=discord.ButtonStyle.secondary)
         
         async def create_callback(interaction):
+            # Check if user is admin or bot owner
+            if not interaction.user.guild_permissions.administrator and interaction.user.id != self.bot.owner_id:
+                await interaction.response.send_message("You don't have permission to create events.", ephemeral=True)
+                return
+                
             modal = EventCreateModal()
             modal.callback = self.create_event_callback
             await interaction.response.send_modal(modal)
             
-        async def view_callback(interaction):
-            view = EventManageView(self)
-            await interaction.response.send_message("Select an event to view:", view=view, ephemeral=True)
-            
         create_button.callback = create_callback
-        view_button.callback = view_callback
         
         view.add_item(create_button)
-        view.add_item(view_button)
         
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
@@ -312,7 +279,7 @@ class EventSchedulerCog(commands.Cog):
         embed = discord.Embed(
             title=f"{event_data['name']}",
             description=event_data['description'],
-            color=discord.Color.orange(),
+            color=discord.Color.blurple(),
             timestamp=event_data['date']
         )
         
@@ -344,6 +311,42 @@ class EventSchedulerCog(commands.Cog):
             embed.add_field(name=f"{emoji} {status} ({len(user_list)})", value=value, inline=True)
         
         return embed
+
+    @app_commands.command(name="viewevents", description="View upcoming events and sign up")
+    async def viewevents(self, interaction: discord.Interaction):
+        """Command to view upcoming events (available to all users)"""
+        if not self.events:
+            await interaction.response.send_message("There are no events scheduled at this time.", ephemeral=True)
+            return
+            
+        # Get the next upcoming event (closest to current time)
+        current_time = datetime.datetime.now()
+        
+        # Filter only future events
+        future_events = {
+            event_id: event_data for event_id, event_data in self.events.items() 
+            if event_data["date"] > current_time
+        }
+        
+        if not future_events:
+            await interaction.response.send_message("There are no upcoming events scheduled.", ephemeral=True)
+            return
+            
+        # Sort by closest date
+        sorted_events = sorted(future_events.items(), key=lambda x: x[1]["date"])
+        
+        # Get the closest event
+        next_event_id, _ = sorted_events[0]
+        
+        # Create the embed and view for the event
+        event_embed = self.create_event_embed(next_event_id)
+        view = EventSignupView(self, next_event_id)
+        
+        # Add navigation if there's more than one event
+        if len(sorted_events) > 1:
+            view.add_item(Button(label=f"1/{len(sorted_events)}", style=discord.ButtonStyle.secondary, disabled=True))
+        
+        await interaction.response.send_message(embed=event_embed, view=view)
 
 async def setup(bot):
     await bot.add_cog(EventSchedulerCog(bot))
