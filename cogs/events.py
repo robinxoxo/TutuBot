@@ -94,16 +94,16 @@ class EventSignupView(View):
         self.cog = cog
         self.event_id = event_id
         
-        # Add buttons for different statuses
+        # Add buttons for different statuses without emojis or special colors
         statuses = [
-            ("👍 Attending", discord.ButtonStyle.success, "Attending"),
-            ("🕒 Late", discord.ButtonStyle.secondary, "Late"),
-            ("🤔 Tentative", discord.ButtonStyle.secondary, "Tentative"),
-            ("🚫 Absence", discord.ButtonStyle.danger, "Absence")
+            ("Attending", discord.ButtonStyle.secondary, "Attending"),
+            ("Late", discord.ButtonStyle.secondary, "Late"),
+            ("Tentative", discord.ButtonStyle.secondary, "Tentative"),
+            ("Absence", discord.ButtonStyle.secondary, "Absence")
         ]
         
-        for emoji_label, style, status in statuses:
-            self.add_item(StatusButton(emoji_label, style, status, self.cog, self.event_id))
+        for button_label, style, status in statuses:
+            self.add_item(StatusButton(button_label, style, status, self.cog, self.event_id))
 
 class StatusButton(Button):
     def __init__(self, label, style, status, cog, event_id):
