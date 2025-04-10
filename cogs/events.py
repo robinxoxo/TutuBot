@@ -510,7 +510,7 @@ class EventSchedulerCog(commands.Cog):
             await interaction.response.send_message("This event no longer exists.", ephemeral=True)
             return
             
-        # Check if the event is already posted in this channel
+        # Get current channel ID and event data
         channel_id = str(interaction.channel_id)
         event_data = self.events[event_id]
         posted_info = event_data.get("posted", {})
@@ -518,15 +518,29 @@ class EventSchedulerCog(commands.Cog):
         # Initialize posted data if it doesn't exist
         if "posted" not in event_data:
             event_data["posted"] = {}
-            
-        # Try to delete the previous message if it exists
-        if channel_id in posted_info:
+        
+        # Delete this event from ALL channels it's posted in
+        deleted_messages = []
+        for old_channel_id, message_id in list(posted_info.items()):
             try:
-                prev_message = await interaction.channel.fetch_message(int(posted_info[channel_id]))
-                await prev_message.delete()
-                print(f"Deleted previous event post: {posted_info[channel_id]}")
+                # Try to get the channel
+                channel = self.bot.get_channel(int(old_channel_id))
+                if channel:
+                    # Try to get and delete the message
+                    message = await channel.fetch_message(int(message_id))
+                    if message:
+                        await message.delete()
+                        deleted_messages.append(old_channel_id)
+                        print(f"Deleted event post in channel {old_channel_id}")
             except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
-                print(f"Could not delete previous event message: {e}")
+                print(f"Could not delete event message in channel {old_channel_id}: {e}")
+        
+        # Remove deleted messages from the posted info
+        for old_channel_id in deleted_messages:
+            del event_data["posted"][old_channel_id]
+            
+        # Clear out the posted info completely since we're enforcing a single post policy
+        event_data["posted"] = {}
         
         # Create the embed and view for the event
         embed = self.create_event_embed(event_id)
@@ -538,11 +552,15 @@ class EventSchedulerCog(commands.Cog):
         # Post the event
         event_message = await interaction.channel.send(embed=embed, view=view)
         
-        # Store the message ID
+        # Store the message ID in the new channel only
         event_data["posted"][channel_id] = event_message.id
         self.save_events()
         
-        await interaction.response.send_message(f"Event posted successfully!", ephemeral=True)
+        # Report success, including information about cleanup
+        if deleted_messages:
+            await interaction.response.send_message(f"Event posted successfully! Removed {len(deleted_messages)} previous post(s).", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Event posted successfully!", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EventSchedulerCog(bot))
