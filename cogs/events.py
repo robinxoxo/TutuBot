@@ -7,7 +7,7 @@ from discord.ui import Button, View, Modal, TextInput, Select
 class EventCreateModal(Modal, title="Create Event"):
     event_name = TextInput(label="Event Name", placeholder="Enter event name", required=True)
     event_date = TextInput(label="Date (YYYY-MM-DD)", placeholder="2023-12-31", required=True)
-    event_time = TextInput(label="Time (HH:MM)", placeholder="20:00", required=True)
+    event_time = TextInput(label="Time (24-hour format HH:MM)", placeholder="20:00 (8:00 PM)", required=True)
     event_description = TextInput(label="Description", placeholder="Event details...", required=True, style=discord.TextStyle.paragraph)
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -28,10 +28,10 @@ class EventSignupView(View):
         
         # Add buttons for different statuses
         statuses = [
-            ("✓ Attending", discord.ButtonStyle.success, "Attending"),
-            ("⏱️ Late", discord.ButtonStyle.secondary, "Late"),
-            ("❓ Tentative", discord.ButtonStyle.secondary, "Tentative"),
-            ("✗ Absence", discord.ButtonStyle.danger, "Absence")
+            ("👍 Attending", discord.ButtonStyle.success, "Attending"),
+            ("🕒 Late", discord.ButtonStyle.secondary, "Late"),
+            ("🤔 Tentative", discord.ButtonStyle.secondary, "Tentative"),
+            ("🚫 Absence", discord.ButtonStyle.danger, "Absence")
         ]
         
         for emoji_label, style, status in statuses:
@@ -136,7 +136,7 @@ class EventSchedulerCog(commands.Cog):
         view.add_item(create_button)
         view.add_item(view_button)
         
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
     async def create_event_callback(self, interaction, name, date, description):
         """Callback for event creation modal"""
@@ -164,9 +164,9 @@ class EventSchedulerCog(commands.Cog):
         event_data = self.events[event_id]
         
         embed = discord.Embed(
-            title=f"📅 {event_data['name']}",
+            title=f"{event_data['name']}",
             description=event_data['description'],
-            color=discord.Color.blue(),
+            color=discord.Color.orange(),
             timestamp=event_data['date']
         )
         
@@ -183,10 +183,10 @@ class EventSchedulerCog(commands.Cog):
         
         # List signups by status
         for status, emoji in [
-            ("Attending", "✓"), 
-            ("Late", "⏱️"), 
-            ("Tentative", "❓"), 
-            ("Absence", "✗")
+            ("Attending", "👍"), 
+            ("Late", "🕒"), 
+            ("Tentative", "🤔"), 
+            ("Absence", "🚫")
         ]:
             user_list = []
             for user_id in event_data["signups"].get(status, []):
