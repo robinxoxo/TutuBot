@@ -1,5 +1,8 @@
 import discord
 import datetime
+import json
+import os
+import re
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput, Select
@@ -7,7 +10,7 @@ from discord.ui import Button, View, Modal, TextInput, Select
 class EventCreateModal(Modal, title="Create Event"):
     event_name = TextInput(label="Event Name", placeholder="Enter event name", required=True)
     event_date = TextInput(label="Date (MM-DD-YYYY)", placeholder="12-31-2023", required=True)
-    event_time = TextInput(label="Time (HH:MM AM/PM)", placeholder="8:00 PM", required=True)
+    event_time = TextInput(label="Time (HH:MM AM/PM)", placeholder="8:00pm", required=True)
     event_description = TextInput(label="Description", placeholder="Event details...", required=True, style=discord.TextStyle.paragraph)
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -123,6 +126,9 @@ class StatusButton(Button):
         # Add user to selected status
         self.cog.events[self.event_id]["signups"].setdefault(self.status, []).append(user.id)
         
+        # Save the updated events data
+        self.cog.save_events()
+        
         # Update the embed
         updated_embed = self.cog.create_event_embed(self.event_id)
         await interaction.response.edit_message(embed=updated_embed)
@@ -169,6 +175,55 @@ class EventSchedulerCog(commands.Cog):
         self.bot = bot
         self.events = {}  # Dictionary to store event data
         # Format: {event_id: {"name": str, "date": datetime, "description": str, "signups": {"status": [user_ids]}}}
+        self.data_folder = "data"
+        self.events_file = os.path.join(self.data_folder, "events.json")
+        
+        # Create data directory if it doesn't exist
+        if not os.path.exists(self.data_folder):
+            os.makedirs(self.data_folder)
+            
+        # Load existing events data
+        self.load_events()
+
+    def save_events(self):
+        """Save events data to JSON file"""
+        # Convert events data to a serializable format
+        serializable_events = {}
+        
+        for event_id, event_data in self.events.items():
+            serializable_events[str(event_id)] = {
+                "name": event_data["name"],
+                "date": event_data["date"].timestamp(),  # Store as Unix timestamp
+                "description": event_data["description"],
+                "signups": event_data["signups"]
+            }
+        
+        # Save to file
+        try:
+            with open(self.events_file, 'w') as f:
+                json.dump(serializable_events, f, indent=4)
+        except Exception as e:
+            print(f"Error saving events data: {e}")
+            
+    def load_events(self):
+        """Load events data from JSON file"""
+        if not os.path.exists(self.events_file):
+            return
+            
+        try:
+            with open(self.events_file, 'r') as f:
+                serialized_events = json.load(f)
+                
+            # Convert the serialized data back to the proper format
+            for event_id, event_data in serialized_events.items():
+                self.events[int(event_id)] = {
+                    "name": event_data["name"],
+                    "date": datetime.datetime.fromtimestamp(event_data["date"]),
+                    "description": event_data["description"],
+                    "signups": event_data["signups"]
+                }
+        except Exception as e:
+            print(f"Error loading events data: {e}")
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -210,10 +265,13 @@ class EventSchedulerCog(commands.Cog):
         """Callback for event creation modal"""
         event_id = int(datetime.datetime.now().timestamp())
         
+        # Process role mentions in description
+        processed_description = await self.process_role_mentions(interaction.guild, description)
+        
         self.events[event_id] = {
             "name": name,
             "date": date,
-            "description": description,
+            "description": processed_description,
             "signups": {
                 "Attending": [],
                 "Late": [],
@@ -222,10 +280,30 @@ class EventSchedulerCog(commands.Cog):
             }
         }
         
+        # Save updated events data
+        self.save_events()
+        
         embed = self.create_event_embed(event_id)
         view = EventSignupView(self, event_id)
         
         await interaction.followup.send(embed=embed, view=view)
+    
+    async def process_role_mentions(self, guild, description):
+        """Process @ symbols in description to convert to role mentions"""
+        if guild is None:
+            return description
+            
+        # Find all potential role mentions (format: @RoleName)
+        role_matches = re.findall(r'@(\w+)', description)
+        
+        # Replace with actual role mentions if found
+        for role_name in role_matches:
+            role = discord.utils.get(guild.roles, name=role_name)
+            if role:
+                # Replace the mention with the proper role mention format
+                description = description.replace(f'@{role_name}', role.mention)
+                
+        return description
         
     def create_event_embed(self, event_id):
         """Creates an embed for an event with signup information"""
