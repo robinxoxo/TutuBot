@@ -6,8 +6,8 @@ from discord.ui import Button, View, Modal, TextInput, Select
 
 class EventCreateModal(Modal, title="Create Event"):
     event_name = TextInput(label="Event Name", placeholder="Enter event name", required=True)
-    event_date = TextInput(label="Date (DD-MM-YYYY)", placeholder="31-12-2023", required=True)
-    event_time = TextInput(label="Time (HH:MM AM/PM)", placeholder="8:00 pm", required=True)
+    event_date = TextInput(label="Date (MM-DD-YYYY)", placeholder="12-31-2023", required=True)
+    event_time = TextInput(label="Time (HH:MM AM/PM)", placeholder="8:00 PM", required=True)
     event_description = TextInput(label="Description", placeholder="Event details...", required=True, style=discord.TextStyle.paragraph)
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -61,7 +61,7 @@ class EventCreateModal(Modal, title="Create Event"):
             # Try to determine format and convert to DD, MM, YYYY
             if len(date_parts[0]) == 4:  # YYYY-MM-DD format
                 year, month, day = date_parts
-            elif len(date_parts[2]) == 4:  # DD-MM-YYYY or MM-DD-YYYY format
+            elif len(date_parts[2]) == 4:  # MM-DD-YYYY or DD-MM-YYYY format
                 # If first number > 12, it's likely DD-MM-YYYY
                 first_num = int(date_parts[0])
                 second_num = int(date_parts[1])
@@ -70,8 +70,8 @@ class EventCreateModal(Modal, title="Create Event"):
                     day, month, year = date_parts
                 elif second_num > 12:  # First must be month, second must be day
                     month, day, year = date_parts
-                else:  # Ambiguous, assume DD-MM-YYYY as per original format
-                    day, month, year = date_parts
+                else:  # Ambiguous, assume MM-DD-YYYY as default format
+                    month, day, year = date_parts
             else:
                 await interaction.response.send_message("Year must be 4 digits (YYYY)!", ephemeral=True)
                 return
