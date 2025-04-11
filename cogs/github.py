@@ -160,7 +160,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         
         embed = EmbedBuilder.info(
             title="<:bot:1360373720954441939> TutuBot Update",
-            description=f"A new update has been pushed to the bot."
+            description=f"✓ Updates have been pushed to the bot."
         )
         
         embed.add_field(
@@ -187,7 +187,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         commit_url = commit["html_url"]
         embed.add_field(
             name="View Changes",
-            value=f"[View on GitHub]({commit_url})",
+            value=f"[via GitHub]({commit_url})",
             inline=False
         )
         
