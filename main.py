@@ -41,6 +41,7 @@ class TutuBot(commands.Bot):
         self.owner_id = owner_id
         self.guild_id = guild_id
         self.log = logging.getLogger("TutuBot")
+        self.launch_time = time.time()  # Record launch time
 
     async def setup_hook(self) -> None:
         """Loads initial cogs and syncs commands to guild only."""
@@ -112,6 +113,8 @@ if "cogs.faq" not in initial_cogs:
     initial_cogs.append("cogs.faq")
 if "cogs.events" not in initial_cogs:
     initial_cogs.append("cogs.events")
+if "cogs.misc" not in initial_cogs:
+    initial_cogs.append("cogs.misc")
 
 # Create bot
 bot = TutuBot(
