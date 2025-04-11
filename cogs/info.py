@@ -321,8 +321,9 @@ class InfoCog(commands.Cog, name="Info"):
             role: The role to get information about
         """
         # Create embed with role info
-        embed = EmbedBuilder.info(
-            title=f"🏷️ Role Information"
+        embed = EmbedBuilder.custom(
+            title=f"🏷️ Role Information",
+            color=role.color
         )
         
         # General information
@@ -334,7 +335,7 @@ class InfoCog(commands.Cog, name="Info"):
             value=f"`{role.id}`",
             inline=True
         )
-        
+
         embed.add_field(
             name="Created",
             value=f"<t:{created_time}:R> (<t:{created_time}:D>)",
