@@ -10,40 +10,59 @@ import inspect
 import sys
 import importlib
 import pkgutil
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Set, TYPE_CHECKING
 
-from utils.permission_checks import admin_check_with_response
+from utils.permission_checks import is_owner_or_administrator, admin_check_with_response
 from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
     # Need to import the bot class for type hints
     from main import TutuBot
+else:
+    # Import at runtime to prevent circular imports
+    from utils.interaction_utils import send_ephemeral_message
 
 # Configure logging
 log = logging.getLogger(__name__)
 
-def get_available_cogs(core_cogs=None):
-    """Returns a list of available cogs in the cogs directory.
+def get_available_cogs(exclude_cogs: List[str] = None) -> Set[str]:
+    """Get all available cogs in the cogs directory.
     
     Args:
-        core_cogs: Optional list of core cog names to exclude from the result
+        exclude_cogs: List of cog modules to exclude
+        
+    Returns:
+        Set of cog module names
     """
-    core_cogs = core_cogs or []
-    cogs_dir = './cogs'
+    if exclude_cogs is None:
+        exclude_cogs = []
+        
+    cogs_dir = 'cogs'
+    extension_paths = set()
+    
+    # Check that the cogs directory exists
     if not os.path.isdir(cogs_dir):
-        log.warning(f"Cogs directory '{cogs_dir}' not found.")
-        return []
+        return extension_paths
     
-    cogs_list = []
+    # Look for all Python files in the cogs directory
     for filename in os.listdir(cogs_dir):
-        if filename.endswith('.py'):
-            cog_name = f'cogs.{filename[:-3]}'
-            # Only add if not in core_cogs list
-            if cog_name not in core_cogs:
-                cogs_list.append(cog_name)
-    
-    return cogs_list
+        if filename.startswith('_'):
+            continue  # Skip __pycache__ and other special directories/files
+            
+        if os.path.isdir(os.path.join(cogs_dir, filename)):
+            # This is a subdirectory, check for __init__.py
+            if os.path.exists(os.path.join(cogs_dir, filename, '__init__.py')):
+                extension_path = f'cogs.{filename}'
+                if extension_path not in exclude_cogs:
+                    extension_paths.add(extension_path)
+        elif filename.endswith('.py'):
+            # This is a Python file
+            extension_path = f'cogs.{filename[:-3]}'
+            if extension_path not in exclude_cogs:
+                extension_paths.add(extension_path)
+                
+    return extension_paths
 
 class CogManager(commands.Cog):
     """Provides slash commands to manage the bot's cogs."""
@@ -54,23 +73,8 @@ class CogManager(commands.Cog):
         # Ensure only cogmanager and faq are treated as core
         self.actual_core_cogs = ['cogs.cogmanager']
 
-    async def _check_permission(self, interaction: discord.Interaction) -> bool:
-        """Check if the user has permission to use admin commands.
-        
-        Returns True if the user is the bot owner or has administrator permission.
-        """
-        # Always allow bot owner
-        if interaction.user.id == self.bot.owner_id:
-            return True
-            
-        # Check for admin permission if in a guild
-        if interaction.guild and isinstance(interaction.user, discord.Member):
-            return interaction.user.guild_permissions.administrator
-            
-        # Default to False if not owner and not admin
-        return False
-
     @app_commands.command(name="sync", description="[Admin] Sync slash commands to the server.")
+    @is_owner_or_administrator()
     async def sync_commands(self, interaction: discord.Interaction, target: str = "guild"):
         """Syncs slash commands to the guild or globally.
         
@@ -78,10 +82,6 @@ class CogManager(commands.Cog):
             interaction: The interaction object
             target: Where to sync commands ("guild" or "global")
         """
-        # Permission check
-        if not await admin_check_with_response(interaction):
-            return
-            
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -130,17 +130,9 @@ class CogManager(commands.Cog):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="load", description="[Admin] Loads a specified cog.")
+    @is_owner_or_administrator()
     async def load_cog(self, interaction: discord.Interaction, cog_name: str):
         """Loads a non-core cog. Provide the name without 'cogs.' prefix."""
-        # Permission check
-        if not await self._check_permission(interaction):
-            embed = EmbedBuilder.error(
-                title="🚫 Access Denied",
-                description="You need administrator permissions to use this command."
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-            
         actual_cog_name = f"cogs.{cog_name}"
         available_cogs = get_available_cogs(self.actual_core_cogs)
         if actual_cog_name not in available_cogs:
@@ -148,7 +140,7 @@ class CogManager(commands.Cog):
                 title="✗ Cog Not Found",
                 description=f"`{cog_name}` not found in available cogs."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
 
         try:
@@ -159,7 +151,7 @@ class CogManager(commands.Cog):
                 title="✓ Cog Loaded",
                 description=f"`{cog_name}` loaded successfully."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except commands.ExtensionAlreadyLoaded:
             log.warning(f"Attempted to load already loaded cog '{actual_cog_name}' by {interaction.user}.")
             
@@ -167,7 +159,7 @@ class CogManager(commands.Cog):
                 title="⚠️ Already Loaded",
                 description=f"`{cog_name}` is already loaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except commands.ExtensionNotFound:
             log.error(f"Cog '{actual_cog_name}' not found during load attempt by {interaction.user}.")
             
@@ -175,7 +167,7 @@ class CogManager(commands.Cog):
                 title="✗ Cog Not Found",
                 description=f"`{cog_name}` could not be found."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except Exception as e:
             log.exception(f"Error loading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
@@ -185,22 +177,14 @@ class CogManager(commands.Cog):
             )
             
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await send_ephemeral_message(interaction, embed=embed)
             else:
                 await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="unload", description="[Admin] Unloads a specified cog.")
+    @is_owner_or_administrator()
     async def unload_cog(self, interaction: discord.Interaction, cog_name: str):
         """Unloads a non-core cog. Provide the name without 'cogs.' prefix."""
-        # Permission check
-        if not await self._check_permission(interaction):
-            embed = EmbedBuilder.error(
-                title="🚫 Access Denied",
-                description="You need administrator permissions to use this command."
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-            
         actual_cog_name = f"cogs.{cog_name}"
         # Prevent unloading core cogs
         if actual_cog_name in self.actual_core_cogs:
@@ -208,7 +192,7 @@ class CogManager(commands.Cog):
                 title="✗ Core Cog",
                 description=f"Cannot unload core cog `{cog_name}`."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Check if the cog exists based on loaded extensions
@@ -218,7 +202,7 @@ class CogManager(commands.Cog):
                 description=(f"`{cog_name}` not found." if actual_cog_name not in get_available_cogs(self.actual_core_cogs) 
                              else f"`{cog_name}` exists but is not loaded.")
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
 
         try:
@@ -229,7 +213,7 @@ class CogManager(commands.Cog):
                 title="✓ Cog Unloaded",
                 description=f"`{cog_name}` unloaded successfully."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except commands.ExtensionNotLoaded:
             log.warning(f"Attempted to unload not loaded cog '{actual_cog_name}' by {interaction.user}.")
             
@@ -237,7 +221,7 @@ class CogManager(commands.Cog):
                 title="⚠️ Not Loaded",
                 description=f"`{cog_name}` is not loaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except Exception as e:
             log.exception(f"Error unloading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
@@ -247,22 +231,14 @@ class CogManager(commands.Cog):
             )
             
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await send_ephemeral_message(interaction, embed=embed)
             else:
                 await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="reload", description="[Admin] Reloads a specified cog.")
+    @is_owner_or_administrator()
     async def reload_cog(self, interaction: discord.Interaction, cog_name: str):
         """Reloads a cog. Provide the name without 'cogs.' prefix."""
-        # Permission check
-        if not await self._check_permission(interaction):
-            embed = EmbedBuilder.error(
-                title="🚫 Access Denied",
-                description="You need administrator permissions to use this command."
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-            
         actual_cog_name = f"cogs.{cog_name}"
         
         # Check if the cog exists at all (either on disk or loaded)
@@ -275,7 +251,7 @@ class CogManager(commands.Cog):
                 title="✗ Cog Not Found",
                 description=f"`{cog_name}` not found."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         if not is_loaded:
@@ -283,7 +259,7 @@ class CogManager(commands.Cog):
                 title="⚠️ Not Loaded",
                 description=f"`{cog_name}` exists but is not currently loaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         try:
@@ -294,7 +270,7 @@ class CogManager(commands.Cog):
                 title="✓ Cog Reloaded",
                 description=f"`{cog_name}` reloaded successfully."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except commands.ExtensionNotLoaded:
             # Unlikely to hit this but handle just in case
             log.warning(f"Attempted to reload not loaded cog '{actual_cog_name}' by {interaction.user}.")
@@ -303,7 +279,7 @@ class CogManager(commands.Cog):
                 title="⚠️ Not Loaded",
                 description=f"`{cog_name}` is not loaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except commands.ExtensionNotFound:
             log.error(f"Cog '{actual_cog_name}' not found during reload attempt by {interaction.user}.")
             
@@ -311,7 +287,7 @@ class CogManager(commands.Cog):
                 title="✗ Cog Not Found",
                 description=f"`{cog_name}` could not be found."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         except Exception as e:
             log.exception(f"Error reloading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
@@ -321,22 +297,14 @@ class CogManager(commands.Cog):
             )
             
             if not interaction.response.is_done():
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await send_ephemeral_message(interaction, embed=embed)
             else:
                 await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="list", description="[Admin] Lists available and loaded cogs.")
+    @is_owner_or_administrator()
     async def list_cogs(self, interaction: discord.Interaction):
         """Lists all available and currently loaded cogs."""
-        # Permission check
-        if not await self._check_permission(interaction):
-            embed = EmbedBuilder.error(
-                title="🚫 Access Denied",
-                description="You need administrator permissions to use this command."
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-            
         # Get all available cogs
         all_cogs = []
         
@@ -403,7 +371,7 @@ class CogManager(commands.Cog):
             )
         
         embed.set_footer(text="Core modules cannot be unloaded")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
 
 
 # Simplified setup function

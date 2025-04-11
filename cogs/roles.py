@@ -3,14 +3,18 @@ from discord import app_commands, ui
 from discord.ext import commands
 import logging
 import typing
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, TYPE_CHECKING
 
 from utils.role_definitions import RoleCategory, ROLE_DEFINITIONS
 from utils.permission_checks import is_owner_or_administrator
 from utils.embed_builder import EmbedBuilder
 
+# Import utilities - prevent circular imports
 if typing.TYPE_CHECKING:
     from main import TutuBot
+else:
+    # Import interaction utils at runtime
+    from utils.interaction_utils import send_ephemeral_message
 
 log = logging.getLogger(__name__)
 
@@ -287,17 +291,17 @@ class RoleCog(commands.Cog, name="Roles"):
         """
         # Guild check
         if not interaction.guild:
-            await interaction.response.send_message(
-                content="This command can only be used in a server.",
-                ephemeral=True
+            await send_ephemeral_message(
+                interaction,
+                content="This command can only be used in a server."
             )
             return
             
         # Ensure we have a member to manage roles on
         if not isinstance(interaction.user, discord.Member):
-            await interaction.response.send_message(
-                content="Could not identify you as a member of this server.",
-                ephemeral=True
+            await send_ephemeral_message(
+                interaction,
+                content="Could not identify you as a member of this server."
             )
             return
             
@@ -310,7 +314,7 @@ class RoleCog(commands.Cog, name="Roles"):
         # Create view with role category selection
         view = RolesView()
         
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed, view=view)
         
     @app_commands.command(name="syncroles", description="[Admin] Synchronize server roles with bot configuration")
     @is_owner_or_administrator()
@@ -321,9 +325,9 @@ class RoleCog(commands.Cog, name="Roles"):
             interaction: The interaction
         """
         if not interaction.guild:
-            await interaction.response.send_message(
-                content="This command can only be used in a server.",
-                ephemeral=True
+            await send_ephemeral_message(
+                interaction,
+                content="This command can only be used in a server."
             )
             return
             
@@ -440,13 +444,13 @@ class RoleCog(commands.Cog, name="Roles"):
                 title="✗ Error",
                 description="You need administrator permissions to use this command."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An error occurred: {str(error)}"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the RoleCog."""

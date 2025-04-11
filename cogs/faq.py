@@ -3,11 +3,15 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 import typing
+from typing import TYPE_CHECKING
 from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
     from main import TutuBot
+else:
+    # Import at runtime to prevent circular imports
+    from utils.interaction_utils import send_ephemeral_message
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -102,7 +106,7 @@ class FaqCog(commands.Cog, name="FAQ"):
 
         embed.set_footer(text="Use the slash (/) to invoke commands")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the FaqCog.

@@ -3,7 +3,7 @@ from discord import app_commands, ui
 from discord.ext import commands, tasks
 import logging
 import typing
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, TYPE_CHECKING
 import os
 import asyncio
 import json
@@ -16,6 +16,9 @@ from utils.embed_builder import EmbedBuilder
 # For type hinting only
 if typing.TYPE_CHECKING:
     from main import TutuBot
+else:
+    # Import at runtime to prevent circular imports
+    from utils.interaction_utils import send_ephemeral_message
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -35,7 +38,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error",
                 description="Cannot determine the current channel."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Update the notification channel for this guild
@@ -45,7 +48,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error",
                 description="This command can only be used in a server."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         channel_id = interaction.channel_id
@@ -71,7 +74,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error", 
                 description="This command can only be used in a server."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Get current settings for this guild
@@ -119,7 +122,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error",
                 description="This command can only be used in a server."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Get current settings for this guild
@@ -374,7 +377,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
                 title="✗ Error",
                 description="This command can only be used in a server."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Create embed with information about streaming notifications
@@ -397,7 +400,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
         # Create view with buttons
         view = StreamingSettingsView(self)
         
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed, view=view)
         
     @streaming.error
     async def streaming_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -412,13 +415,13 @@ class StreamingCog(commands.Cog, name="Streaming"):
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An error occurred: {str(error)}"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             log.error(f"Error in streaming command: {error}")
 
 async def setup(bot: 'TutuBot'):

@@ -5,12 +5,15 @@ import logging
 import typing
 import platform
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
     from main import TutuBot
+else:
+    # Import at runtime to prevent circular imports
+    from utils.interaction_utils import send_ephemeral_message
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -35,9 +38,9 @@ class InfoCog(commands.Cog, name="Info"):
         """
         # Ensure this is used in a server
         if not interaction.guild:
-            await interaction.response.send_message(
-                "This command can only be used in servers.",
-                ephemeral=True
+            await send_ephemeral_message(
+                interaction,
+                content="This command can only be used in servers."
             )
             return
         
@@ -118,7 +121,7 @@ class InfoCog(commands.Cog, name="Info"):
             inline=False
         )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
         
     @app_commands.command(name="userinfo", description="Show information about a user")
     @app_commands.describe(user="The user to get information about (defaults to yourself)")
@@ -251,7 +254,7 @@ class InfoCog(commands.Cog, name="Info"):
                     inline=True
                 )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
     
     @app_commands.command(name="avatar", description="Show a user's avatar")
     @app_commands.describe(user="The user whose avatar to show (defaults to yourself)")
@@ -273,7 +276,7 @@ class InfoCog(commands.Cog, name="Info"):
                 title="No Avatar Found",
                 description=f"{target_user.mention} doesn't have a custom avatar."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Create embed with avatar
@@ -309,7 +312,7 @@ class InfoCog(commands.Cog, name="Info"):
         else:
             embed.description = "This user has no custom avatar."
             
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
     
     @app_commands.command(name="roleinfo", description="Show information about a role")
     @app_commands.describe(role="The role to get information about")
@@ -412,7 +415,7 @@ class InfoCog(commands.Cog, name="Info"):
                 inline=False
             )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
     
     @app_commands.command(name="botinfo", description="Show information about the bot")
     async def show_bot_info(self, interaction: discord.Interaction):
@@ -484,7 +487,7 @@ class InfoCog(commands.Cog, name="Info"):
               
         embed.set_footer(text=f"ID: {bot_user.id}")
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the InfoCog.

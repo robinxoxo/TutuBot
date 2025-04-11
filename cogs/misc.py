@@ -5,9 +5,10 @@ import logging
 import typing
 from typing import Optional, List, Dict, Any
 
-from utils.permission_checks import admin_check_with_response
+from utils.permission_checks import admin_check_with_response, is_owner_or_administrator
 from utils.embed_colors import load_colors, save_colors, hex_to_color, color_to_hex, DEFAULT_COLORS
 from utils.embed_builder import EmbedBuilder
+from utils.interaction_utils import send_ephemeral_message
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -229,16 +230,13 @@ class MiscCog(commands.Cog, name="Misc"):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="embedcolors", description="[Admin] Manage the colors used in bot embeds")
+    @is_owner_or_administrator()
     async def manage_colors(self, interaction: discord.Interaction):
         """Interactive UI for managing embed colors.
         
         Args:
             interaction: The interaction object
         """
-        # Permission check
-        if not await admin_check_with_response(interaction):
-            return
-            
         # Create embed for initial message
         embed = EmbedBuilder.info(
             title="🎨 Embed Color Management",
@@ -248,7 +246,24 @@ class MiscCog(commands.Cog, name="Misc"):
         # Create view with buttons
         view = ColorSelector(self)
         
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed, view=view)
+        
+    @manage_colors.error
+    async def manage_colors_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Error handler for the manage_colors command."""
+        if isinstance(error, app_commands.errors.CheckFailure):
+            embed = EmbedBuilder.error(
+                title="✗ Access Denied",
+                description="You need administrator permissions to use this command."
+            )
+            await send_ephemeral_message(interaction, embed=embed)
+        else:
+            embed = EmbedBuilder.error(
+                title="✗ Error",
+                description=f"An error occurred: {str(error)}"
+            )
+            await send_ephemeral_message(interaction, embed=embed)
+            log.error(f"Error in embedcolors command: {error}")
 
 async def setup(bot: 'TutuBot'):
     """Sets up the MiscCog.
