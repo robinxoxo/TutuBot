@@ -145,6 +145,7 @@ class CogManager(commands.Cog):
         available_cogs = get_available_cogs(self.actual_core_cogs)
         if actual_cog_name not in available_cogs:
             embed = EmbedBuilder.error(
+                title="✗ Cog Not Found",
                 description=f"`{cog_name}` not found in available cogs."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -155,6 +156,7 @@ class CogManager(commands.Cog):
             log.info(f"Cog '{actual_cog_name}' loaded by {interaction.user}.")
             
             embed = EmbedBuilder.success(
+                title="✓ Cog Loaded",
                 description=f"`{cog_name}` loaded successfully."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -162,6 +164,7 @@ class CogManager(commands.Cog):
             log.warning(f"Attempted to load already loaded cog '{actual_cog_name}' by {interaction.user}.")
             
             embed = EmbedBuilder.warning(
+                title="⚠️ Already Loaded",
                 description=f"`{cog_name}` is already loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -169,6 +172,7 @@ class CogManager(commands.Cog):
             log.error(f"Cog '{actual_cog_name}' not found during load attempt by {interaction.user}.")
             
             embed = EmbedBuilder.error(
+                title="✗ Cog Not Found",
                 description=f"`{cog_name}` could not be found."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -176,6 +180,7 @@ class CogManager(commands.Cog):
             log.exception(f"Error loading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
             embed = EmbedBuilder.error(
+                title="✗ Error",
                 description=f"Error loading `{cog_name}`: {str(e)}"
             )
             
@@ -200,6 +205,7 @@ class CogManager(commands.Cog):
         # Prevent unloading core cogs
         if actual_cog_name in self.actual_core_cogs:
             embed = EmbedBuilder.error(
+                title="✗ Core Cog",
                 description=f"Cannot unload core cog `{cog_name}`."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -208,6 +214,7 @@ class CogManager(commands.Cog):
         # Check if the cog exists based on loaded extensions
         if actual_cog_name not in self.bot.extensions:
             embed = EmbedBuilder.warning(
+                title="⚠️ Cog Not Loaded",
                 description=(f"`{cog_name}` not found." if actual_cog_name not in get_available_cogs(self.actual_core_cogs) 
                              else f"`{cog_name}` exists but is not loaded.")
             )
@@ -219,6 +226,7 @@ class CogManager(commands.Cog):
             log.info(f"Cog '{actual_cog_name}' unloaded by {interaction.user}.")
             
             embed = EmbedBuilder.success(
+                title="✓ Cog Unloaded",
                 description=f"`{cog_name}` unloaded successfully."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -226,6 +234,7 @@ class CogManager(commands.Cog):
             log.warning(f"Attempted to unload not loaded cog '{actual_cog_name}' by {interaction.user}.")
             
             embed = EmbedBuilder.warning(
+                title="⚠️ Not Loaded",
                 description=f"`{cog_name}` is not loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -233,6 +242,7 @@ class CogManager(commands.Cog):
             log.exception(f"Error unloading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
             embed = EmbedBuilder.error(
+                title="✗ Error",
                 description=f"Error unloading `{cog_name}`: {str(e)}"
             )
             
@@ -262,6 +272,7 @@ class CogManager(commands.Cog):
         
         if not cog_exists:
             embed = EmbedBuilder.error(
+                title="✗ Cog Not Found",
                 description=f"`{cog_name}` not found."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -269,6 +280,7 @@ class CogManager(commands.Cog):
             
         if not is_loaded:
             embed = EmbedBuilder.warning(
+                title="⚠️ Not Loaded",
                 description=f"`{cog_name}` exists but is not currently loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -279,6 +291,7 @@ class CogManager(commands.Cog):
             log.info(f"Cog '{actual_cog_name}' reloaded by {interaction.user}.")
             
             embed = EmbedBuilder.success(
+                title="✓ Cog Reloaded",
                 description=f"`{cog_name}` reloaded successfully."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -287,6 +300,7 @@ class CogManager(commands.Cog):
             log.warning(f"Attempted to reload not loaded cog '{actual_cog_name}' by {interaction.user}.")
             
             embed = EmbedBuilder.warning(
+                title="⚠️ Not Loaded",
                 description=f"`{cog_name}` is not loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -294,6 +308,7 @@ class CogManager(commands.Cog):
             log.error(f"Cog '{actual_cog_name}' not found during reload attempt by {interaction.user}.")
             
             embed = EmbedBuilder.error(
+                title="✗ Cog Not Found",
                 description=f"`{cog_name}` could not be found."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -301,6 +316,7 @@ class CogManager(commands.Cog):
             log.exception(f"Error reloading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
             embed = EmbedBuilder.error(
+                title="✗ Error",
                 description=f"Error reloading `{cog_name}`: {str(e)}"
             )
             
