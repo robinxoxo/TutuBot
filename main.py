@@ -113,6 +113,8 @@ if "cogs.events" not in initial_cogs:
     initial_cogs.append("cogs.events")
 if "cogs.misc" not in initial_cogs:
     initial_cogs.append("cogs.misc")
+if "cogs.github" not in initial_cogs:
+    initial_cogs.append("cogs.github")
 
 # Create bot
 bot = TutuBot(
