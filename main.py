@@ -101,8 +101,6 @@ intents.presences = True  # Required for activity/streaming status tracking
 
 # All cogs to load at startup
 initial_cogs = CORE_COGS.copy()
-if "cogs.birthdays" not in initial_cogs:
-    initial_cogs.append("cogs.birthdays")
 if "cogs.roles" not in initial_cogs:
     initial_cogs.append("cogs.roles")
 if "cogs.streaming" not in initial_cogs:
