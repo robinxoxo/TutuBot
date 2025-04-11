@@ -147,26 +147,41 @@ class GitHubCog(commands.Cog, name="GitHub"):
             
         # Create embed for the commit
         commit_hash = commit["sha"][:7]
-        commit_message = commit["commit"]["message"].split("\n")[0]  # Get first line
+        commit_message_full = commit["commit"]["message"]
+        commit_lines = commit_message_full.split("\n")
+        
+        # Split title and description
+        commit_title = commit_lines[0].strip()
+        commit_description = "\n".join(commit_lines[1:]).strip() if len(commit_lines) > 1 else ""
+        
         author = commit["commit"]["author"]["name"]
         date = datetime.fromisoformat(commit["commit"]["author"]["date"].replace("Z", "+00:00"))
+        timestamp = int(date.timestamp())
         
         embed = EmbedBuilder.info(
-            title="🔄 New GitHub Update",
-            description=f"A new update has been pushed to the repository."
+            title="📢 TutuBot Update",
+            description=f"A new update has been pushed to the bot."
         )
         
         embed.add_field(
             name="Commit",
-            value=f"`{commit_hash}` by **{author}** on <t:{int(date.timestamp())}:F>",
+            value=f"`{commit_hash}` by **{author}** <t:{timestamp}:R>",
             inline=False
         )
         
         embed.add_field(
-            name="Message",
-            value=commit_message,
+            name="Title",
+            value=commit_title,
             inline=False
         )
+        
+        # Only add description if it's not empty
+        if commit_description:
+            embed.add_field(
+                name="Description",
+                value=commit_description,
+                inline=False
+            )
         
         # Add link to the commit
         commit_url = commit["html_url"]
