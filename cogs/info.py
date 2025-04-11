@@ -6,6 +6,7 @@ import typing
 import platform
 from datetime import datetime
 from typing import Optional
+from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -43,9 +44,8 @@ class InfoCog(commands.Cog, name="Info"):
         guild = interaction.guild
         
         # Create embed with server info
-        embed = discord.Embed(
-            title=f"📊 {guild.name}",
-            color=discord.Color.blue()
+        embed = EmbedBuilder.info(
+            title=f"📊 {guild.name}"
         )
         
         # Add server icon if available
@@ -135,9 +135,8 @@ class InfoCog(commands.Cog, name="Info"):
         target_user = user or interaction.user
         
         # Create basic embed
-        embed = discord.Embed(
-            title=f"👤 User Information",
-            color=discord.Color.blue()
+        embed = EmbedBuilder.info(
+            title=f"👤 User Information"
         )
         
         # Set user avatar if available
@@ -259,7 +258,7 @@ class InfoCog(commands.Cog, name="Info"):
     async def avatar(self, 
                       interaction: discord.Interaction, 
                       user: Optional[discord.User] = None):
-        """Displays a user's avatar.
+        """Displays a user's avatar at full resolution.
         
         Args:
             interaction: The Discord interaction
@@ -268,10 +267,18 @@ class InfoCog(commands.Cog, name="Info"):
         # Default to command user if not specified
         target_user = user or interaction.user
         
-        # Create the embed
-        embed = discord.Embed(
-            title=f"{target_user.name}'s Avatar",
-            color=discord.Color.blue()
+        # Check if user has an avatar
+        if not target_user.avatar:
+            embed = EmbedBuilder.error(
+                title="No Avatar Found",
+                description=f"{target_user.mention} doesn't have a custom avatar."
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
+        # Create embed with avatar
+        embed = EmbedBuilder.info(
+            title=f"{target_user.name}'s Avatar"
         )
         
         # Add the avatar
@@ -307,16 +314,15 @@ class InfoCog(commands.Cog, name="Info"):
     @app_commands.command(name="roleinfo", description="Show information about a role")
     @app_commands.describe(role="The role to get information about")
     async def role_info(self, interaction: discord.Interaction, role: discord.Role):
-        """Displays information about a specific role.
+        """Displays information about a role.
         
         Args:
             interaction: The Discord interaction
             role: The role to get information about
         """
         # Create embed with role info
-        embed = discord.Embed(
-            title=f"🏷️ Role Information: {role.name}",
-            color=role.color if role.color != discord.Color.default() else discord.Color.blue()
+        embed = EmbedBuilder.info(
+            title=f"🏷️ Role Information"
         )
         
         # General information
@@ -414,45 +420,46 @@ class InfoCog(commands.Cog, name="Info"):
         Args:
             interaction: The Discord interaction
         """
+        # Get basic bot information
+        bot_user = self.bot.user
+        assert bot_user is not None  # For type checking
+        
         # Create embed with bot info
-        embed = discord.Embed(
+        embed = EmbedBuilder.info(
             title=f"🤖 Bot Information",
-            description=f"Information about {self.bot.user.name if self.bot.user else 'the bot'}",
-            color=discord.Color.blue()
+            description=f"Information about {bot_user.name}"
         )
         
-        # Add bot avatar if available
-        if self.bot.user and self.bot.user.avatar:
-            embed.set_thumbnail(url=self.bot.user.avatar.url)
+        # Set bot avatar if available
+        if bot_user.avatar:
+            embed.set_thumbnail(url=bot_user.avatar.url)
         
         # Calculate uptime
-        bot_uptime = discord.utils.utcnow() - self.bot.user.created_at if self.bot.user else None
-        uptime_str = str(bot_uptime).split(".")[0] if bot_uptime else "Unknown"
+        uptime = datetime.now() - datetime.fromtimestamp(self.bot.launch_time) if hasattr(self.bot, 'launch_time') else None
+        uptime_str = str(uptime).split('.')[0] if uptime else "Unknown"
         
-        # Count servers, channels, and users
+        # System information
+        py_version = platform.python_version()
+        discord_version = discord.__version__
+        os_info = f"{platform.system()} {platform.release()}"
+        
+        # Guild and user count
         guild_count = len(self.bot.guilds)
-        channel_count = sum(len(guild.channels) for guild in self.bot.guilds)
-        user_count = sum(guild.member_count or 0 for guild in self.bot.guilds)
+        user_count = sum(g.member_count or 0 for g in self.bot.guilds)
         
-        # Get command count
+        # Get cog information
+        cog_count = len(self.bot.cogs)
         command_count = len(self.bot.tree.get_commands())
-        
-        # Add fields
-        embed.add_field(
-            name="ID",
-            value=f"`{self.bot.user.id}`" if self.bot.user else "Unknown",
-            inline=True
-        )
         
         embed.add_field(
             name="Owner",
-            value=f"<@{self.bot.owner_id}>" if hasattr(self.bot, "owner_id") else "Unknown",
+            value=f"<@{self.bot.owner_id}>",
             inline=True
         )
         
         embed.add_field(
             name="Created",
-            value=f"<t:{int(self.bot.user.created_at.timestamp())}:R>" if self.bot.user else "Unknown",
+            value=f"<t:{int(bot_user.created_at.timestamp())}:R>" if bot_user else "Unknown",
             inline=True
         )
         
@@ -463,40 +470,18 @@ class InfoCog(commands.Cog, name="Info"):
         )
         
         embed.add_field(
-            name="Library",
-            value=f"discord.py {discord.__version__}",
-            inline=True
+            name="System",
+            value=f"```\nPython: {py_version}\nDiscord.py: {discord_version}\nOS: {os_info}\n```",
+            inline=False
         )
         
         embed.add_field(
-            name="Python",
-            value=platform.python_version(),
+            name="Stats",
+            value=f"• **Servers:** {guild_count}\n• **Users:** {user_count}\n• **Cogs:** {cog_count}\n• **Commands:** {command_count}",
             inline=True
         )
-        
-        embed.add_field(
-            name="Servers",
-            value=str(guild_count),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="Channels",
-            value=str(channel_count),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="Users",
-            value=str(user_count),
-            inline=True
-        )
-        
-        embed.add_field(
-            name="Commands",
-            value=str(command_count),
-            inline=True
-        )
+              
+        embed.set_footer(text=f"ID: {bot_user.id}")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

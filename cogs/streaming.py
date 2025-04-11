@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 # Import our custom permission check
 from utils.permission_checks import is_owner_or_administrator
+from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -30,10 +31,9 @@ class StreamingSettingsView(ui.View):
     async def set_channel(self, interaction: discord.Interaction, button: ui.Button):
         """Set the channel for streaming notifications."""
         if interaction.channel is None:
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description="Cannot determine the current channel.",
-                color=discord.Color.red()
+                description="Cannot determine the current channel."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -41,10 +41,9 @@ class StreamingSettingsView(ui.View):
         # Update the notification channel for this guild
         guild_id = str(interaction.guild_id) if interaction.guild_id else None
         if not guild_id:
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description="This command can only be used in a server.",
-                color=discord.Color.red()
+                description="This command can only be used in a server."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -57,10 +56,9 @@ class StreamingSettingsView(ui.View):
         }
         self.cog.save_settings()
         
-        embed = discord.Embed(
+        embed = EmbedBuilder.success(
             title="✓ Channel Set",
-            description=f"Streaming notifications will now be sent to <#{channel_id}>.",
-            color=discord.Color.green()
+            description=f"Streaming notifications will now be sent to <#{channel_id}>."
         )
         await interaction.response.edit_message(embed=embed, view=None)
         
@@ -69,10 +67,9 @@ class StreamingSettingsView(ui.View):
         """Toggle streaming notifications on/off."""
         guild_id = str(interaction.guild_id) if interaction.guild_id else None
         if not guild_id:
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error", 
-                description="This command can only be used in a server.",
-                color=discord.Color.red()
+                description="This command can only be used in a server."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -97,10 +94,9 @@ class StreamingSettingsView(ui.View):
         self.cog.save_settings()
         
         state_text = "enabled" if new_state else "disabled"
-        embed = discord.Embed(
+        embed = EmbedBuilder.success(
             title=f"✓ Notifications {state_text.title()}",
-            description=f"Streaming notifications are now **{state_text}**.",
-            color=discord.Color.green() if new_state else discord.Color.red()
+            description=f"Streaming notifications are now **{state_text}**."
         )
         
         # Add channel info if enabled
@@ -119,10 +115,9 @@ class StreamingSettingsView(ui.View):
         """Show current streaming notification settings."""
         guild_id = str(interaction.guild_id) if interaction.guild_id else None
         if not guild_id:
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description="This command can only be used in a server.",
-                color=discord.Color.red()
+                description="This command can only be used in a server."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -132,9 +127,8 @@ class StreamingSettingsView(ui.View):
         enabled = guild_settings.get("enabled", False)
         channel_id = guild_settings.get("notification_channel")
         
-        embed = discord.Embed(
-            title="⚙️ Streaming Notification Settings",
-            color=discord.Color.blue()
+        embed = EmbedBuilder.info(
+            title="⚙️ Streaming Notification Settings"
         )
         
         status = "Enabled" if enabled else "Disabled"
@@ -298,54 +292,67 @@ class StreamingCog(commands.Cog, name="Streaming"):
             #         await self._send_stopped_streaming_notification(channel, member)
 
     async def _send_streaming_notification(self, channel, member, activity):
-        """Send a notification that a member is streaming."""
-        try:
-            # Create embed
-            embed = discord.Embed(
-                title=f"🔴 {member.display_name} is now streaming!",
-                description=activity.name if activity.name else "Started a stream",
-                url=activity.url,
-                color=discord.Color.purple()
+        """Send a streaming notification for a member.
+        
+        Args:
+            channel: The channel to send the notification to
+            member: The member who is streaming
+            activity: The streaming activity
+        """
+        # Get stream details
+        stream_title = getattr(activity, "details", "Untitled Stream")
+        stream_url = getattr(activity, "url", None)
+        stream_game = getattr(activity, "game", "")
+        
+        if not stream_title:
+            stream_title = "Untitled Stream"
+            
+        # Create embed for the stream notification
+        embed = EmbedBuilder.info(
+            title=f"🔴 {member.display_name} is now streaming!"
+        )
+        
+        # Add member avatar
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
+            
+        # Add stream details
+        embed.add_field(
+            name="Stream Title",
+            value=stream_title,
+            inline=False
+        )
+        
+        if stream_game:
+            embed.add_field(
+                name="Game",
+                value=stream_game,
+                inline=True
             )
             
-            # Add platform information if available
-            if hasattr(activity, 'platform'):
-                embed.add_field(
-                    name="Platform",
-                    value=activity.platform,
-                    inline=True
-                )
-                
-            # Add game information if available
-            if hasattr(activity, 'game'):
-                embed.add_field(
-                    name="Playing",
-                    value=activity.game,
-                    inline=True
-                )
-                
-            # Add member avatar
-            if member.avatar:
-                embed.set_thumbnail(url=member.avatar.url)
-                
-            # Set footer with timestamp
-            embed.set_footer(text=f"Stream started at {discord.utils.utcnow().strftime('%H:%M:%S UTC')}")
+        # Add timestamp
+        embed.timestamp = datetime.utcnow()
+        
+        # Add stream URL as a button
+        view = None
+        if stream_url:
+            view = ui.View()
+            view.add_item(ui.Button(
+                label="Watch Stream",
+                url=stream_url,
+                style=discord.ButtonStyle.link
+            ))
             
-            # Determine which role to mention based on who is streaming
-            captain_tutu_id = 141339919304884224
-            role_mention = ""
-            if member.id == captain_tutu_id:
-                # Mention Captain Tutu's specific role
-                role_mention = "<@&762198424929959946>"
-                log.info(f"Captain Tutu is streaming, mentioning Captain Tutu role")
-            else:
-                # Mention the general streaming role for everyone else
-                role_mention = "<@&1358193327572389970>"
-            
-            await channel.send(content=f"{member.mention} is now streaming! {role_mention}", embed=embed)
-            log.info(f"Sent streaming notification for {member.name}#{member.discriminator} in {channel.guild.name}")
+        try:
+            await channel.send(
+                content=f"📢 {member.mention} is now live!",
+                embed=embed,
+                view=view
+            )
+            return True
         except Exception as e:
-            log.error(f"Error sending streaming notification: {e}")
+            log.error(f"Failed to send streaming notification: {e}")
+            return False
 
     @check_streaming_status.before_loop
     async def before_check_streaming_status(self):
@@ -357,55 +364,59 @@ class StreamingCog(commands.Cog, name="Streaming"):
     @app_commands.command(name="streaming", description="[Admin] Manage streaming notifications")
     @is_owner_or_administrator()
     async def streaming(self, interaction: discord.Interaction):
-        """Main command for managing streaming notifications.
+        """Configure streaming notifications for this server.
         
         Args:
             interaction: The Discord interaction
         """
-        # Create the embed
-        embed = discord.Embed(
-            title="🎮 Streaming Notifications",
-            description="Configure notifications for when members start streaming.",
-            color=discord.Color.purple()
+        if not interaction.guild:
+            embed = EmbedBuilder.error(
+                title="✗ Error",
+                description="This command can only be used in a server."
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
+        # Create embed with information about streaming notifications
+        embed = EmbedBuilder.info(
+            title="🔴 Streaming Notifications",
+            description="Configure how the bot announces when members are streaming."
         )
         
-        # Add instructions
+        # Add options
         embed.add_field(
-            name="Available Actions", 
+            name="Options",
             value=(
-                "• **Set Notification Channel** - Choose where notifications are sent\n"
-                "• **Toggle Notifications** - Turn notifications on/off\n"
-                "• **Show Current Settings** - View your current configuration"
+                "• Set the channel for notifications\n"
+                "• Enable or disable notifications\n"
+                "• View current settings"
             ),
             inline=False
         )
         
-        # Create the view with buttons
+        # Create view with buttons
         view = StreamingSettingsView(self)
         
-        # Send the response
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
+        
     @streaming.error
     async def streaming_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         """Error handler for the streaming command.
         
         Args:
-            interaction: The Discord interaction
-            error: The error that occurred
+            interaction: The interaction
+            error: The error
         """
         if isinstance(error, app_commands.errors.CheckFailure):
-            embed = discord.Embed(
-                title="✗ Error",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                title="✗ Access Denied",
+                description="You need administrator permissions to use this command."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"An error occurred: {str(error)}",
-                color=discord.Color.red()
+                description=f"An error occurred: {str(error)}"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             log.error(f"Error in streaming command: {error}")

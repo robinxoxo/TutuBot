@@ -13,6 +13,7 @@ import pkgutil
 from typing import List, Dict, Any, Optional, Union
 
 from utils.permission_checks import admin_check_with_response
+from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -94,10 +95,9 @@ class CogManager(commands.Cog):
                 commands = await self.bot.tree.sync(guild=interaction.guild)
                 count = len(commands)
                 
-                embed = discord.Embed(
+                embed = EmbedBuilder.success(
                     title="🔄 Commands Synced",
-                    description=f"Successfully synced {count} commands to this server.\nThey should be available immediately.",
-                    color=discord.Color.green()
+                    description=f"Successfully synced {count} commands to this server.\nThey should be available immediately."
                 )
   
                 await interaction.followup.send(embed=embed, ephemeral=True)
@@ -107,10 +107,9 @@ class CogManager(commands.Cog):
                 commands = await self.bot.tree.sync()
                 count = len(commands)
                 
-                embed = discord.Embed(
+                embed = EmbedBuilder.success(
                     title="🔄 Commands Synced",
-                    description=f"Successfully synced {count} commands globally.",
-                    color=discord.Color.green()
+                    description=f"Successfully synced {count} commands globally."
                 )
                 
                 embed.add_field(
@@ -124,10 +123,9 @@ class CogManager(commands.Cog):
                 
         except Exception as e:
             log.exception(f"Error syncing commands: {e}")
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"An error occurred while syncing commands: {str(e)}",
-                color=discord.Color.red()
+                description=f"An error occurred while syncing commands: {str(e)}"
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -136,10 +134,9 @@ class CogManager(commands.Cog):
         """Loads a non-core cog. Provide the name without 'cogs.' prefix."""
         # Permission check
         if not await self._check_permission(interaction):
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="🚫 Access Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
+                description="You need administrator permissions to use this command."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -147,9 +144,8 @@ class CogManager(commands.Cog):
         actual_cog_name = f"cogs.{cog_name}"
         available_cogs = get_available_cogs(self.actual_core_cogs)
         if actual_cog_name not in available_cogs:
-            embed = discord.Embed(
-                description=f"`{cog_name}` not found in available cogs.",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"`{cog_name}` not found in available cogs."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -158,33 +154,29 @@ class CogManager(commands.Cog):
             await self.bot.load_extension(actual_cog_name)
             log.info(f"Cog '{actual_cog_name}' loaded by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` loaded successfully.",
-                color=discord.Color.green()
+            embed = EmbedBuilder.success(
+                description=f"`{cog_name}` loaded successfully."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         except commands.ExtensionAlreadyLoaded:
             log.warning(f"Attempted to load already loaded cog '{actual_cog_name}' by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` is already loaded.",
-                color=discord.Color.gold()
+            embed = EmbedBuilder.warning(
+                description=f"`{cog_name}` is already loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         except commands.ExtensionNotFound:
             log.error(f"Cog '{actual_cog_name}' not found during load attempt by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` could not be found.",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"`{cog_name}` could not be found."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as e:
             log.exception(f"Error loading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
-            embed = discord.Embed(
-                description=f"Error loading `{cog_name}`: {str(e)}",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"Error loading `{cog_name}`: {str(e)}"
             )
             
             if not interaction.response.is_done():
@@ -197,10 +189,9 @@ class CogManager(commands.Cog):
         """Unloads a non-core cog. Provide the name without 'cogs.' prefix."""
         # Permission check
         if not await self._check_permission(interaction):
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="🚫 Access Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
+                description="You need administrator permissions to use this command."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -208,24 +199,18 @@ class CogManager(commands.Cog):
         actual_cog_name = f"cogs.{cog_name}"
         # Prevent unloading core cogs
         if actual_cog_name in self.actual_core_cogs:
-            embed = discord.Embed(
-                description=f"Cannot unload core cog `{cog_name}`.",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"Cannot unload core cog `{cog_name}`."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         # Check if the cog exists based on loaded extensions
         if actual_cog_name not in self.bot.extensions:
-            embed = discord.Embed(
-                color=discord.Color.gold()
+            embed = EmbedBuilder.warning(
+                description=(f"`{cog_name}` not found." if actual_cog_name not in get_available_cogs(self.actual_core_cogs) 
+                             else f"`{cog_name}` exists but is not loaded.")
             )
-            
-            if actual_cog_name not in get_available_cogs(self.actual_core_cogs):
-                embed.description = f"`{cog_name}` not found."
-            else:
-                embed.description = f"`{cog_name}` exists but is not loaded."
-                
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
@@ -233,25 +218,22 @@ class CogManager(commands.Cog):
             await self.bot.unload_extension(actual_cog_name)
             log.info(f"Cog '{actual_cog_name}' unloaded by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` unloaded successfully.",
-                color=discord.Color.green()
+            embed = EmbedBuilder.success(
+                description=f"`{cog_name}` unloaded successfully."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         except commands.ExtensionNotLoaded:
             log.warning(f"Attempted to unload not loaded cog '{actual_cog_name}' by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` is not loaded.",
-                color=discord.Color.gold()
+            embed = EmbedBuilder.warning(
+                description=f"`{cog_name}` is not loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as e:
             log.exception(f"Error unloading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
-            embed = discord.Embed(
-                description=f"Error unloading `{cog_name}`: {str(e)}",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"Error unloading `{cog_name}`: {str(e)}"
             )
             
             if not interaction.response.is_done():
@@ -261,102 +243,80 @@ class CogManager(commands.Cog):
 
     @app_commands.command(name="reload", description="[Admin] Reloads a specified cog.")
     async def reload_cog(self, interaction: discord.Interaction, cog_name: str):
-        """Reloads a non-core cog. Provide the name without 'cogs.' prefix."""
+        """Reloads a cog. Provide the name without 'cogs.' prefix."""
         # Permission check
         if not await self._check_permission(interaction):
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="🚫 Access Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
+                description="You need administrator permissions to use this command."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         actual_cog_name = f"cogs.{cog_name}"
-        # Prevent reloading core cogs
-        if actual_cog_name in self.actual_core_cogs:
-            embed = discord.Embed(
-                description=f"Cannot reload core cog `{cog_name}`.",
-                color=discord.Color.red()
+        
+        # Check if the cog exists at all (either on disk or loaded)
+        available_cogs = get_available_cogs()
+        is_loaded = actual_cog_name in self.bot.extensions
+        cog_exists = actual_cog_name in available_cogs or is_loaded
+        
+        if not cog_exists:
+            embed = EmbedBuilder.error(
+                description=f"`{cog_name}` not found."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
-        # Check if the cog file exists
-        available_cogs = get_available_cogs(self.actual_core_cogs)
-        if actual_cog_name not in available_cogs and actual_cog_name not in self.bot.extensions:
-            embed = discord.Embed(
-                description=f"`{cog_name}` not found.",
-                color=discord.Color.red()
+        if not is_loaded:
+            embed = EmbedBuilder.warning(
+                description=f"`{cog_name}` exists but is not currently loaded."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-
-        # Defer the response as reload can take a moment
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        embed = None
-        
+            
         try:
             await self.bot.reload_extension(actual_cog_name)
             log.info(f"Cog '{actual_cog_name}' reloaded by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` reloaded successfully.",
-                color=discord.Color.green()
+            embed = EmbedBuilder.success(
+                description=f"`{cog_name}` reloaded successfully."
             )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         except commands.ExtensionNotLoaded:
-            log.warning(f"Attempted to reload not loaded cog '{actual_cog_name}' by {interaction.user}. Attempting to load instead.")
+            # Unlikely to hit this but handle just in case
+            log.warning(f"Attempted to reload not loaded cog '{actual_cog_name}' by {interaction.user}.")
             
-            if actual_cog_name not in available_cogs:
-                embed = discord.Embed(
-                    description=f"`{cog_name}` not loaded and file not found.",
-                    color=discord.Color.red()
-                )
-            else:
-                try:
-                    await self.bot.load_extension(actual_cog_name)
-                    log.info(f"Cog '{actual_cog_name}' loaded instead of reloaded by {interaction.user}.")
-                    
-                    embed = discord.Embed(
-                        description=f"`{cog_name}` was loaded instead.",
-                        color=discord.Color.green()
-                    )
-                except Exception as e_load:
-                    log.exception(f"Error loading cog '{actual_cog_name}' during reload attempt by {interaction.user}: {e_load}")
-                    
-                    embed = discord.Embed(
-                        description=f"Error loading `{cog_name}`: {str(e_load)}",
-                        color=discord.Color.red()
-                    )
+            embed = EmbedBuilder.warning(
+                description=f"`{cog_name}` is not loaded."
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         except commands.ExtensionNotFound:
             log.error(f"Cog '{actual_cog_name}' not found during reload attempt by {interaction.user}.")
             
-            embed = discord.Embed(
-                description=f"`{cog_name}` not found.",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"`{cog_name}` could not be found."
             )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as e:
             log.exception(f"Error reloading cog '{actual_cog_name}' by {interaction.user}: {e}")
             
-            embed = discord.Embed(
-                description=f"Error reloading `{cog_name}`: {str(e)}",
-                color=discord.Color.red()
+            embed = EmbedBuilder.error(
+                description=f"Error reloading `{cog_name}`: {str(e)}"
             )
-
-        # Send followup message after deferral
-        if embed:
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="list", description="[Admin] Lists available and loaded cogs.")
     async def list_cogs(self, interaction: discord.Interaction):
         """Lists all available and currently loaded cogs."""
         # Permission check
         if not await self._check_permission(interaction):
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="🚫 Access Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
+                description="You need administrator permissions to use this command."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -393,10 +353,9 @@ class CogManager(commands.Cog):
         loaded_cogs = list(self.bot.extensions.keys())
         
         # Create embed
-        embed = discord.Embed(
+        embed = EmbedBuilder.info(
             title="📦 Cogs Status",
-            description="✓ Active | ✗ Inactive",
-            color=discord.Color.blue()
+            description="✓ Active | ✗ Inactive"
         )
         
         # Add core cogs section

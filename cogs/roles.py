@@ -7,6 +7,7 @@ from typing import List, Dict, Optional, Any
 
 from utils.role_definitions import RoleCategory, ROLE_DEFINITIONS
 from utils.permission_checks import is_owner_or_administrator
+from utils.embed_builder import EmbedBuilder
 
 if typing.TYPE_CHECKING:
     from main import TutuBot
@@ -43,10 +44,9 @@ class RoleCategorySelect(ui.Select):
         view = RolesView(selected_category, interaction.user.roles)
         
         # Create embed for category
-        embed = discord.Embed(
+        embed = EmbedBuilder.info(
             title=f"🏷️ {selected_category.value}",
-            description="Select roles to add or remove from the dropdown below.",
-            color=discord.Color.blue()
+            description="Select roles to add or remove from the dropdown below."
         )
         
         # Count how many roles the user has in this category
@@ -161,10 +161,12 @@ class RolesSelect(ui.Select):
                 await interaction.user.remove_roles(*roles_to_remove, reason="Self-removed via role menu")
                 
             # Create embed for result
-            embed = discord.Embed(
+            embed = EmbedBuilder.success(
                 title=f"🏷️ {self.category.value}",
-                description="Your roles have been updated.",
-                color=discord.Color.green() if (roles_to_add or roles_to_remove) else discord.Color.blue()
+                description="Your roles have been updated."
+            ) if (roles_to_add or roles_to_remove) else EmbedBuilder.info(
+                title=f"🏷️ {self.category.value}",
+                description="Your roles have been updated."
             )
             
             # Get updated member to ensure we have the latest roles
@@ -199,409 +201,252 @@ class RolesSelect(ui.Select):
                 embed.add_field(name="Your Current Roles", value="\n".join(current_roles), inline=False)
             else:
                 embed.add_field(name="Your Current Roles", value="None in this category", inline=False)
+                
+            # Create a new view with updated defaults
+            view = RolesView(self.category, updated_member.roles)
+            await interaction.response.edit_message(embed=embed, view=view)
             
-            # Create a new view with updated role selections using the updated member's roles
-            updated_view = RolesView(self.category, updated_member.roles)
-            
-            await interaction.response.edit_message(
-                content=None,
-                embed=embed,
-                view=updated_view
-            )
         except discord.Forbidden:
             # Create a more detailed error message about role permissions
-            error_embed = discord.Embed(
+            error_embed = EmbedBuilder.error(
                 title="✗ Permission Error",
-                description=f"I don't have permission to manage these roles in the '{self.category.value}' category.",
-                color=discord.Color.red()
+                description=f"I don't have permission to manage these roles in the '{self.category.value}' category."
             )
             
             error_embed.add_field(
-                name="Possible Reasons",
-                value=(
-                    "• The bot's role is lower in the server hierarchy than it should be.\n"
-                    "• The bot lacks 'Manage Roles' permission.\n"
-                    "• These specific roles are restricted by server settings."
-                ),
+                name="What Happened?",
+                value="Either the requested roles are managed by Discord or I lack permission to change them.",
                 inline=False
             )
             
-            # Add troubleshooting advice
             error_embed.add_field(
-                name="Solutions",
-                value=(
-                    "• Ask a server admin to move the bot's role higher in the role list.\n"
-                    "• Ensure the bot has 'Manage Roles' permission.\n"
-                    "• Contact a server admin for assistance."
-                ),
+                name="Solution",
+                value="Ask a server administrator to fix the role hierarchy or permissions.",
                 inline=False
             )
             
-            # Log specific details for debugging
-            role_names = []
-            if roles_to_add:
-                role_names.extend([role.name for role in roles_to_add])
-            if roles_to_remove:
-                role_names.extend([role.name for role in roles_to_remove])
-                
-            log.error(f"Permission denied while managing roles in category '{self.category.value}'. Roles: {', '.join(role_names)}")
+            await interaction.response.edit_message(embed=error_embed, view=self.view)
             
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
         except Exception as e:
-            log.exception(f"Error managing roles: {e}")
-            await interaction.response.send_message(
-                f"An error occurred while managing roles: {str(e)}",
-                ephemeral=True
+            log.exception(f"Error updating roles for user {interaction.user} in category {self.category}: {e}")
+            await interaction.response.edit_message(
+                embed=EmbedBuilder.error(
+                    title="✗ Error",
+                    description=f"An error occurred while updating your roles: {str(e)}"
+                ),
+                view=self.view
             )
 
 class RolesView(ui.View):
-    """View for role selection within a category."""
+    """View for managing roles with categories."""
     
     def __init__(self, category: Optional[RoleCategory] = None, user_roles: Optional[List[discord.Role]] = None):
-        super().__init__(timeout=300)  # 5 minute timeout
-        
-        self.user_roles = user_roles or []
+        super().__init__(timeout=180)  # 3 minute timeout
         
         if category:
-            # Add the role selection menu for this category with user's current roles
-            self.add_item(RolesSelect(category, self.user_roles))
-            self.category = category
+            # View for a specific category with roles
+            self.add_item(RolesSelect(category, user_roles or []))
+            self.add_item(ui.Button(label="Back to Categories", style=discord.ButtonStyle.secondary, custom_id="back"))
             
-            # Add back button only when in a specific category
-            back_button = ui.Button(label="Back to Categories", style=discord.ButtonStyle.secondary)
-            back_button.callback = self.back_button_callback
-            self.add_item(back_button)
+            # Set callback for back button
+            for item in self.children:
+                if isinstance(item, ui.Button) and item.custom_id == "back":
+                    item.callback = self.back_button_callback
+            
         else:
-            # Add the category selection menu
+            # Main category selection view
             self.add_item(RoleCategorySelect())
-    
+            
     async def back_button_callback(self, interaction: discord.Interaction):
-        """Return to the category selection menu."""
-        # We need a valid member with roles
-        if not interaction.guild or not isinstance(interaction.user, discord.Member):
-            # Fall back to a simple view with no user roles
-            view = RolesView()
-            
-            # Simple embed without role information
-            embed = discord.Embed(
-                title="👤 Role Management",
-                description="Select a category of roles to manage from the dropdown below.",
-                color=discord.Color.blue()
-            )
-            
-            embed.add_field(
-                name="How It Works",
-                value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected",
-                inline=False
-            )
-            
-            await interaction.response.edit_message(
-                content=None,
-                embed=embed,
-                view=view
-            )
-            return
-            
-        # Get updated member to ensure we have the latest roles
-        member = await interaction.guild.fetch_member(interaction.user.id)
+        """Returns to the main category selection."""
+        assert isinstance(interaction.user, discord.Member), "User must be a Member"
         
-        # Create a new view with the updated roles
-        view = RolesView(user_roles=member.roles)
-        
-        # Create embed for main menu
-        embed = discord.Embed(
+        # Simple embed without role information  
+        embed = EmbedBuilder.info(
             title="👤 Role Management",
-            description="Select a category of roles to manage from the dropdown below.",
-            color=discord.Color.blue()
+            description="Select a category of roles to manage from the dropdown below."
         )
         
-        embed.add_field(
-            name="How It Works",
-            value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected",
-            inline=False
-        )
+        # Create a view with category selection
+        view = RolesView()
         
-        # Group user's current roles by category
-        member_role_names = [role.name.lower() for role in member.roles]
-        roles_by_category = {}
-        
-        # Initialize categories for sorting
-        for category in RoleCategory:
-            roles_by_category[category] = []
-            
-        # Sort roles into categories
-        for role_id, role_info in ROLE_DEFINITIONS.items():
-            if role_info["name"].lower() in member_role_names:
-                category = role_info["category"]
-                # Display role name in title case for better readability
-                display_name = role_info["name"].lower().title()
-                roles_by_category[category].append(f"{role_info['emoji']} {display_name}")
-        
-        # Add fields for current roles by category
-        has_roles = False
-        for category, roles in roles_by_category.items():
-            if roles:
-                has_roles = True
-                embed.add_field(
-                    name=f"{category.value}",
-                    value="\n".join(roles),
-                    inline=True
-                )
-        
-        if not has_roles:
-            embed.add_field(
-                name="Roles",
-                value="You don't have any roles yet. Select a category to add roles.",
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="Your Current Roles",
-                value="Your current roles are displayed above.",
-                inline=False
-            )
-        
-        await interaction.response.edit_message(
-            content=None,
-            embed=embed,
-            view=view
-        )
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class RoleCog(commands.Cog, name="Roles"):
-    """Manages community roles through interactive UI."""
-    
+    """Handles role management for the server."""
+
     def __init__(self, bot: 'TutuBot'):
         self.bot = bot
-        
+
     @app_commands.command(name="roles", description="Manage your community roles")
     async def roles_command(self, interaction: discord.Interaction):
-        """Displays the role management interface."""
-        # Check if we're in a guild
+        """Displays an interactive role manager to add/remove roles.
+        
+        Args:
+            interaction: The interaction
+        """
+        # Guild check
         if not interaction.guild:
-            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+            await interaction.response.send_message(
+                content="This command can only be used in a server.",
+                ephemeral=True
+            )
             return
             
-        # We need to ensure the user is a Member to get roles
+        # Ensure we have a member to manage roles on
         if not isinstance(interaction.user, discord.Member):
-            await interaction.response.send_message("There was an error retrieving your roles. Please try again.", ephemeral=True)
+            await interaction.response.send_message(
+                content="Could not identify you as a member of this server.",
+                ephemeral=True
+            )
             return
             
-        # Get updated member to ensure we have the latest roles
-        member = await interaction.guild.fetch_member(interaction.user.id)
-            
-        # Initialize the role category selection view
-        view = RolesView(user_roles=member.roles)
-        
         # Create embed for main menu
-        embed = discord.Embed(
+        embed = EmbedBuilder.info(
             title="👤 Role Management",
-            description="Select a category of roles to manage from the dropdown below.",
-            color=discord.Color.blue()
+            description="Select a category of roles to manage from the dropdown below."
         )
-        
-        embed.add_field(
-            name="How It Works",
-            value="• Choose a category\n• Select roles you want\n• Unselect roles you don't want\n• Your current roles appear pre-selected",
-            inline=False
-        )
-        
-        # Group user's current roles by category
-        member_role_names = [role.name.lower() for role in member.roles]
-        roles_by_category = {}
-        
-        # Initialize categories for sorting
-        for category in RoleCategory:
-            roles_by_category[category] = []
             
-        # Sort roles into categories
-        for role_id, role_info in ROLE_DEFINITIONS.items():
-            if role_info["name"].lower() in member_role_names:
-                category = role_info["category"]
-                # Display role name in title case for better readability
-                display_name = role_info["name"].lower().title()
-                roles_by_category[category].append(f"{role_info['emoji']} {display_name}")
+        # Create view with role category selection
+        view = RolesView()
         
-        # Add fields for current roles by category
-        has_roles = False
-        for category, roles in roles_by_category.items():
-            if roles:
-                has_roles = True
-                embed.add_field(
-                    name=f"{category.value}",
-                    value="\n".join(roles),
-                    inline=True
-                )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         
-        if not has_roles:
-            embed.add_field(
-                name="Roles",
-                value="You don't have any roles yet. Select a category to add roles.",
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="Your Current Roles",
-                value="Your current roles are displayed above.",
-                inline=False
-            )
-        
-        await interaction.response.send_message(
-            embed=embed,
-            view=view,
-            ephemeral=True
-        )
-    
     @app_commands.command(name="syncroles", description="[Admin] Synchronize server roles with bot configuration")
     @is_owner_or_administrator()
     async def syncroles_command(self, interaction: discord.Interaction):
-        """Admin command to synchronize missing roles with bot configuration."""
-        if not interaction.guild or not isinstance(interaction.user, discord.Member):
-            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+        """Creates and updates roles based on the role definitions.
+        
+        Args:
+            interaction: The interaction
+        """
+        if not interaction.guild:
+            await interaction.response.send_message(
+                content="This command can only be used in a server.",
+                ephemeral=True
+            )
             return
             
         await interaction.response.defer(ephemeral=True, thinking=True)
         
-        # Get existing roles (case-insensitive)
-        existing_roles_lower = {}
-        for role in interaction.guild.roles:
-            existing_roles_lower[role.name.lower()] = role
+        # Get current server roles
+        existing_roles = {role.name.lower(): role for role in interaction.guild.roles}
         
-        # Track our changes
+        # Track stats
         created_roles = []
         updated_roles = []
-        failed_roles = []
+        unchanged_roles = []
         
-        # Before processing, explicitly log existing roles with mixed/title case
-        log.info(f"--- Role Sync: Starting role audit ---")
-        for role in interaction.guild.roles:
-            if role.name.lower() != role.name:
-                log.info(f"Found title/mixed case role: '{role.name}' (will convert to: '{role.name.lower()}')")
-        
-        # Process all roles defined in configuration
+        # Process all role definitions
         for role_id, role_info in ROLE_DEFINITIONS.items():
-            # Get defined role name and convert to lowercase for storage
-            original_role_name = role_info["name"]
-            role_name = original_role_name.lower()  # Always store as lowercase
-            role_color = role_info.get("color", discord.Color.default())
+            role_name = role_info["name"]
+            role_name_lower = role_name.lower()
+            emoji = role_info.get("emoji", "")
+            position = role_info.get("position", 0)
             
-            log.info(f"Processing role definition: '{role_name}'")
+            # Check color handling (hexcode or discord.Color)
+            color_value = role_info.get("color", 0)
+            if isinstance(color_value, str) and color_value.startswith("#"):
+                # Convert hex color to int
+                color_value = int(color_value.lstrip("#"), 16)
+                
+            role_color = discord.Color(color_value)
             
-            # Check if role exists (case-insensitive)
-            if role_name in existing_roles_lower:
-                # Role exists, check if it needs to be updated
-                existing_role = existing_roles_lower[role_name]
-                needs_update = False
-                update_fields = []
+            # Add defaults for role properties
+            mentionable = role_info.get("mentionable", True)
+            hoist = role_info.get("hoist", False)  # Whether to display separately
+            
+            # If role already exists, update it
+            if role_name_lower in existing_roles:
+                existing_role = existing_roles[role_name_lower]
                 
-                # Debug output for troubleshooting
-                log.info(f"Found existing role: '{existing_role.name}' for '{role_name}'")
+                # Find properties that need updating
+                updates_needed = []
                 
-                # Compare names directly - this ensures we catch any case differences
-                if existing_role.name != role_name:
-                    log.info(f"Name case mismatch: '{existing_role.name}' vs '{role_name}'")
-                    needs_update = True
-                    update_fields.append(f"name (from '{existing_role.name}' to '{role_name}')")
+                if existing_role.color.value != role_color.value:
+                    updates_needed.append(f"color: {existing_role.color} → {role_color}")
                 
-                # Check if color needs to be updated
-                if role_color != existing_role.color:
-                    log.info(f"Color mismatch: {existing_role.color} vs {role_color}")
-                    needs_update = True
-                    update_fields.append("color")
+                if existing_role.mentionable != mentionable:
+                    updates_needed.append(f"mentionable: {existing_role.mentionable} → {mentionable}")
+                    
+                if existing_role.hoist != hoist:
+                    updates_needed.append(f"hoist: {existing_role.hoist} → {hoist}")
                 
-                if needs_update:
+                # Apply updates if needed
+                if updates_needed:
                     try:
-                        log.info(f"Updating role '{existing_role.name}' to name='{role_name}', color={role_color}")
-                        
-                        # Perform the edit
                         await existing_role.edit(
-                            name=role_name,  # Force to lowercase
                             color=role_color,
-                            reason="Auto-updated by role sync command"
+                            mentionable=mentionable,
+                            hoist=hoist,
+                            reason="Role sync from bot configuration"
                         )
                         
-                        # Verify the update
-                        updated_role = interaction.guild.get_role(existing_role.id)
-                        
-                        if updated_role is None:
-                            log.warning(f"Failed to retrieve the updated role with id {existing_role.id}")
-                            failed_roles.append(f"{role_name} (role not found after update)")
-                        else:
-                            log.info(f"After update: role name='{updated_role.name}'")
-                            
-                            if updated_role.name != role_name:
-                                log.warning(f"Update verification failed! Name is still '{updated_role.name}' instead of '{role_name}'")
-                                failed_roles.append(f"{role_name} (update failed)")
-                            else:
-                                updated_roles.append((updated_role, update_fields))
-                                log.info(f"✓ Role '{role_name}' updated successfully")
-                    
+                        updated_roles.append((role_name, ", ".join(updates_needed)))
                     except discord.Forbidden:
-                        log.error(f"Permission denied while updating role '{role_name}'")
-                        failed_roles.append(f"{role_name} (permission denied)")
+                        log.warning(f"Missing permissions to edit role: {role_name}")
                     except Exception as e:
-                        log.exception(f"Error updating role '{role_name}': {e}")
-                        failed_roles.append(f"{role_name} (error: {str(e)})")
+                        log.error(f"Error updating role {role_name}: {e}")
+                else:
+                    unchanged_roles.append(role_name)
             else:
-                # Create missing role with lowercase name
+                # Create new role
                 try:
-                    category = role_info["category"]
-                    log.info(f"Creating new role: '{role_name}' (category: {category.value})")
-                    
-                    role = await interaction.guild.create_role(
-                        name=role_name,  # Use lowercase
-                        reason=f"Auto-created by role setup command - {category.value}",
-                        color=role_color
+                    new_role = await interaction.guild.create_role(
+                        name=role_name,
+                        color=role_color,
+                        mentionable=mentionable,
+                        hoist=hoist,
+                        reason="Role creation from bot configuration"
                     )
-                    created_roles.append(role)
+                    created_roles.append(role_name)
+                except discord.Forbidden:
+                    log.warning(f"Missing permissions to create role: {role_name}")
                 except Exception as e:
-                    log.exception(f"Failed to create role {role_name}: {e}")
-                    failed_roles.append(role_name)
+                    log.error(f"Error creating role {role_name}: {e}")
         
         # Create embed for results
-        embed = discord.Embed(
+        embed = EmbedBuilder.success(
             title="🔄 Role Synchronization Results",
-            color=discord.Color.green() if (created_roles or updated_roles) else discord.Color.blue()
+            description=f"Role synchronization completed."
+        ) if (created_roles or updated_roles) else EmbedBuilder.info(
+            title="🔄 Role Synchronization Results",
+            description=f"Role synchronization completed. No changes needed."
         )
         
-        # Add fields for created roles
+        # Add results to embed
         if created_roles:
-            created_list = "\n".join(f"✓ {role.name}" for role in created_roles)
-            embed.add_field(name=f"Created {len(created_roles)} Roles", value=created_list, inline=False)
-        else:
-            embed.add_field(name="No New Roles Created", value="All required roles already exist.", inline=False)
-        
-        # Add fields for updated roles
-        if updated_roles:
-            updated_list = "\n".join(f"✓ {role.name} ({', '.join(fields)})" for role, fields in updated_roles)
-            embed.add_field(name=f"Updated {len(updated_roles)} Roles", value=updated_list, inline=False)
-        else:
-            embed.add_field(name="No Roles Updated", value="All existing roles are up to date.", inline=False)
+            created_list = "\n".join(f"✓ {name}" for name in created_roles)
+            embed.add_field(name=f"Created Roles ({len(created_roles)})", value=created_list, inline=False)
             
-        # Add fields for failed roles
-        if failed_roles:
-            failed_list = "\n".join(f"✗ {role.title() if isinstance(role, str) else role}" for role in failed_roles)
-            embed.add_field(name=f"Failed Operations ({len(failed_roles)})", value=failed_list, inline=False)
-        
+        if updated_roles:
+            updated_list = "\n".join(f"✓ {name}: {changes}" for name, changes in updated_roles)
+            embed.add_field(name=f"Updated Roles ({len(updated_roles)})", value=updated_list, inline=False)
+            
+        if unchanged_roles:
+            embed.add_field(
+                name=f"Unchanged Roles ({len(unchanged_roles)})",
+                value=f"{len(unchanged_roles)} roles were already configured correctly.",
+                inline=False
+            )
+            
         await interaction.followup.send(embed=embed, ephemeral=True)
-
+        
     @syncroles_command.error
     async def syncroles_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         """Error handler for the syncroles command."""
         if isinstance(error, app_commands.errors.CheckFailure):
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
+                description="You need administrator permissions to use this command."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            embed = discord.Embed(
+            embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"An error occurred: {str(error)}",
-                color=discord.Color.red()
+                description=f"An error occurred: {str(error)}"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
-            log.error(f"Error in syncroles command: {error}")
 
 async def setup(bot: 'TutuBot'):
     """Sets up the RoleCog."""

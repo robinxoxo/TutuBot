@@ -25,8 +25,20 @@ def load_colors() -> Dict[str, int]:
     """Load custom colors from file or return defaults if file doesn't exist."""
     try:
         if os.path.exists(COLORS_FILE):
-            with open(COLORS_FILE, 'r') as f:
-                return json.load(f)
+            try:
+                with open(COLORS_FILE, 'r') as f:
+                    data = f.read().strip()
+                    # Check if file is empty or has invalid content
+                    if not data:
+                        log.warning("Colors file exists but is empty, using defaults")
+                        save_colors(DEFAULT_COLORS)
+                        return DEFAULT_COLORS
+                    return json.loads(data)
+            except json.JSONDecodeError as e:
+                log.error(f"Error parsing embed colors JSON: {e}")
+                log.info("Resetting to default colors due to corrupted file")
+                save_colors(DEFAULT_COLORS)
+                return DEFAULT_COLORS
         else:
             # Create default file if it doesn't exist
             save_colors(DEFAULT_COLORS)

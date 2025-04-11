@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 import typing
+from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -30,10 +31,9 @@ class FaqCog(commands.Cog, name="FAQ"):
         Args:
             interaction: The Discord interaction
         """
-        embed = discord.Embed(
+        embed = EmbedBuilder.info(
             title="📚 Command Help",
-            description="Here are the available commands:",
-            color=discord.Color.blurple()
+            description="Here are the available commands:"
         )
 
         # Get all commands from the bot's command tree
