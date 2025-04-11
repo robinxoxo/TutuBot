@@ -160,17 +160,17 @@ class GitHubCog(commands.Cog, name="GitHub"):
         
         embed = EmbedBuilder.info(
             title="<:bot:1360373720954441939> TutuBot Update",
-            description=f"✓ Updates have been pushed to the bot."
+            description=f"• Updates have been pushed to the bot."
         )
         
         embed.add_field(
-            name="Commit",
+            name="Commit:",
             value=f"`{commit_hash}` by **{author}** <t:{timestamp}:R>",
             inline=False
         )
         
         embed.add_field(
-            name="Title",
+            name="Title:",
             value=commit_title,
             inline=False
         )
@@ -178,7 +178,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         # Only add description if it's not empty
         if commit_description:
             embed.add_field(
-                name="Description",
+                name="Description:",
                 value=commit_description,
                 inline=False
             )
@@ -186,7 +186,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         # Add link to the commit
         commit_url = commit["html_url"]
         embed.add_field(
-            name="View Changes",
+            name="See Changes:",
             value=f"[via GitHub]({commit_url})",
             inline=False
         )

@@ -8,8 +8,12 @@ TutuBot comes with several modules (cogs) that provide different functionality:
 
 • **CogManager**: Administrative commands to load, unload, and manage bot modules
 • **FAQ**: Create and manage frequently asked questions for your server
-• **Birthdays**: Track member birthdays and send automatic birthday announcements
 • **Roles**: Manage server roles and provide self-assign role capabilities
+• **Streaming**: Track and notify when members go live on streaming platforms
+• **Info**: Provides informational commands about the server and bot
+• **Events**: Handle various Discord events and automated responses
+• **Misc**: Miscellaneous utility commands
+• **GitHub**: GitHub integration for tracking repository updates and sending notifications
 
 ## 🛠️ Setup
 
@@ -36,7 +40,8 @@ pip install -r requirements.txt
 ADMIN_TOKEN=your_discord_bot_token
 BOT_OWNER_ID=your_discord_user_id
 GUILD_ID=your_primary_server_id
-CORE_COGS=cogs.cogmanager,cogs.faq
+CORE_COGS=cogs.cogmanager
+GITHUB_TOKEN=your_github_api_token  # Optional but recommended
 ```
 
 4. Start the bot:
@@ -51,7 +56,8 @@ The bot uses environment variables for configuration:
 • `ADMIN_TOKEN`: Your Discord bot token
 • `BOT_OWNER_ID`: Discord user ID of the bot owner
 • `GUILD_ID`: Primary Discord server ID where commands should sync instantly
-• `CORE_COGS`: Comma-separated list of essential cogs that cannot be unloaded
+• `CORE_COGS`: Comma-separated list of essential cogs that cannot be unloaded (default: cogs.cogmanager)
+• `GITHUB_TOKEN`: GitHub API token for repository monitoring (optional but recommended)
 
 ## 📚 Commands
 
@@ -60,8 +66,12 @@ TutuBot uses Discord's slash commands. Here are some key commands:
 • `/sync`: Synchronize commands to your server or globally
 • `/load`: Load a cog module
 • `/unload`: Unload a non-core cog module
-• `/birthday`: Manage birthday settings
+• `/reload`: Reload a cog module
+• `/list`: List all available and loaded cogs
 • `/roles`: Manage and self-assign roles
+• `/github`: Configure GitHub integration and update notifications
+
+For detailed documentation on commands, see the `docs` directory.
 
 ## 🧩 Adding New Cogs
 
@@ -78,6 +88,19 @@ Example structure:
 def setup(bot):
     bot.add_cog(YourCogName(bot))
 ```
+
+## 🔄 GitHub Integration
+
+TutuBot includes GitHub integration that:
+
+• Monitors repository for new commits automatically
+• Sends detailed notifications about code changes
+• Displays commit information in embedded Discord messages
+• Provides direct links to view changes on GitHub
+
+To configure:
+1. Set your `GITHUB_TOKEN` in the .env file (optional but recommended)
+2. Use the `/github` command to set up an update channel
 
 ## 📜 License
 
