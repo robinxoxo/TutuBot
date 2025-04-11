@@ -2,10 +2,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from typing import Callable, TypeVar, Optional, Union, Awaitable, cast, TYPE_CHECKING
+import asyncio
 
 # For type hinting
 if TYPE_CHECKING:
     from main import TutuBot
+    from utils.interaction_utils import send_ephemeral_message
 
 T = TypeVar('T')
 
@@ -75,5 +77,11 @@ async def admin_check_with_response(interaction: discord.Interaction) -> bool:
         description="You need administrator permissions to use this command.",
         color=discord.Color.red()
     )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    # Use direct ephemeral response to avoid circular imports
+    if interaction.response.is_done():
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    
     return False 
