@@ -159,7 +159,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         timestamp = int(date.timestamp())
         
         embed = EmbedBuilder.info(
-            title="📢 TutuBot Update",
+            title="<:bot:1360373720954441939> TutuBot Update",
             description=f"A new update has been pushed to the bot."
         )
         
