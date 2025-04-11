@@ -56,6 +56,11 @@ class GitHubCog(commands.Cog, name="GitHub"):
         # Track the latest commit
         self.latest_commit_sha = self.settings.get("latest_commit_sha", "")
         
+        # Check for GitHub token
+        self.github_token = os.getenv("GITHUB_TOKEN")
+        if not self.github_token:
+            log.warning("No GITHUB_TOKEN found in environment variables. GitHub API rate limits will be strict.")
+        
         # Start the background task once the bot is ready
         self.check_github_updates.start()
         
@@ -109,13 +114,23 @@ class GitHubCog(commands.Cog, name="GitHub"):
     async def fetch_github_commits(self, repo="robinxoxo/TutuBot", limit=5):
         """Fetch recent commits from GitHub"""
         url = f"https://api.github.com/repos/{repo}/commits"
+        
+        # Add GitHub API token from environment if available
+        headers = {
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        if self.github_token:
+            headers["Authorization"] = f"token {self.github_token}"
+            
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
                     return data[:limit]
                 else:
-                    log.error(f"Failed to fetch GitHub commits: {response.status}")
+                    error_data = await response.text()
+                    log.error(f"Failed to fetch GitHub commits: {response.status} - {error_data}")
                     return None
     
     async def send_commit_update(self, commit):
@@ -167,15 +182,30 @@ class GitHubCog(commands.Cog, name="GitHub"):
     async def check_github_updates(self):
         """Check for GitHub updates periodically."""
         try:
+            # Check if update channel is configured
+            if not self.settings.get("update_channel"):
+                return
+                
             commits = await self.fetch_github_commits(limit=5)
             if not commits:
+                log.warning("No commits retrieved or API error occurred")
                 return
                 
             newest_commit = commits[0]
             newest_sha = newest_commit["sha"]
             
+            # If this is our first run and we have no saved SHA, just save it without notifications
+            if not self.latest_commit_sha:
+                self.latest_commit_sha = newest_sha
+                self.settings["latest_commit_sha"] = newest_sha
+                self.save_settings()
+                log.info(f"Initialized with latest commit: {newest_sha[:7]}")
+                return
+                
             # If we have a new commit and we've seen at least one commit before
-            if self.latest_commit_sha and newest_sha != self.latest_commit_sha:
+            if newest_sha != self.latest_commit_sha:
+                log.info(f"New commits found. Latest: {newest_sha[:7]}, Previous: {self.latest_commit_sha[:7]}")
+                
                 # Find all new commits (those that come before our last known commit)
                 new_commits = []
                 for commit in commits:
@@ -185,12 +215,16 @@ class GitHubCog(commands.Cog, name="GitHub"):
                 
                 # Send updates for new commits (most recent last)
                 for commit in reversed(new_commits):
-                    await self.send_commit_update(commit)
+                    try:
+                        await self.send_commit_update(commit)
+                        log.info(f"Sent update for commit: {commit['sha'][:7]}")
+                    except Exception as e:
+                        log.error(f"Error sending commit update: {e}")
                     
-            # Update the latest commit SHA
-            self.latest_commit_sha = newest_sha
-            self.settings["latest_commit_sha"] = newest_sha
-            self.save_settings()
+                # Update the latest commit SHA
+                self.latest_commit_sha = newest_sha
+                self.settings["latest_commit_sha"] = newest_sha
+                self.save_settings()
             
         except Exception as e:
             log.error(f"Error checking GitHub updates: {e}")
@@ -200,13 +234,33 @@ class GitHubCog(commands.Cog, name="GitHub"):
         """Wait until the bot is ready before starting the task."""
         await self.bot.wait_until_ready()
         
+        # Log GitHub integration status
+        log.info("Starting GitHub integration...")
+        
+        if not self.github_token:
+            log.warning("GitHub API token not found. Add GITHUB_TOKEN to your environment variables for better API access.")
+        
+        update_channel_id = self.settings.get("update_channel")
+        if update_channel_id:
+            channel = self.bot.get_channel(update_channel_id)
+            if channel:
+                log.info(f"GitHub updates will be sent to channel: #{channel.name} ({update_channel_id})")
+            else:
+                log.warning(f"Configured update channel {update_channel_id} not found")
+        else:
+            log.info("No GitHub update channel configured. Use the /github command to set one.")
+        
         # Fetch the latest commit SHA on startup if we don't have one
         if not self.latest_commit_sha:
+            log.info("Fetching initial commit data...")
             commits = await self.fetch_github_commits(limit=1)
             if commits:
                 self.latest_commit_sha = commits[0]["sha"]
                 self.settings["latest_commit_sha"] = self.latest_commit_sha
                 self.save_settings()
+                log.info(f"Initial commit SHA set to: {self.latest_commit_sha[:7]}")
+            else:
+                log.warning("Failed to fetch initial commit data")
     
     @app_commands.command(name="github", description="[Admin] Manage GitHub integration settings")
     @is_owner_or_administrator()
