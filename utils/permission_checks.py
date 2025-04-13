@@ -8,6 +8,9 @@ import asyncio
 if TYPE_CHECKING:
     from main import TutuBot
     from utils.interaction_utils import send_ephemeral_message
+else:
+    # Import at runtime to prevent circular imports
+    from utils.interaction_utils import send_ephemeral_message
 
 T = TypeVar('T')
 
@@ -71,17 +74,15 @@ async def admin_check_with_response(interaction: discord.Interaction) -> bool:
     if await check_owner_or_admin(interaction):
         return True
     
-    # Send error message
-    embed = discord.Embed(
+    # Send error message using the utility function
+    from utils.embed_builder import EmbedBuilder
+    
+    embed = EmbedBuilder.error(
         title="✗ Access Denied",
         description="You need administrator permissions to use this command.",
-        color=discord.Color.red()
+        guild_id=str(interaction.guild_id) if interaction.guild else None
     )
     
-    # Use direct ephemeral response to avoid circular imports
-    if interaction.response.is_done():
-        await interaction.followup.send(embed=embed, ephemeral=True)
-    else:
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_ephemeral_message(interaction, embed=embed)
     
     return False 

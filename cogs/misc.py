@@ -20,9 +20,10 @@ log = logging.getLogger(__name__)
 class ColorSelector(ui.View):
     """Interactive view for selecting embed color actions."""
     
-    def __init__(self, cog: 'MiscCog'):
+    def __init__(self, cog: 'MiscCog', guild_id: Optional[str] = None):
         super().__init__(timeout=300)  # 5 minute timeout
         self.cog = cog
+        self.guild_id = guild_id
         
     @ui.button(label="View Colors", emoji="🎨", style=discord.ButtonStyle.secondary)
     async def view_colors(self, interaction: discord.Interaction, button: ui.Button):
@@ -36,7 +37,8 @@ class ColorSelector(ui.View):
         # Create confirmation message
         embed = EmbedBuilder.warning(
             title="⚠️ Confirm Reset",
-            description="Are you sure you want to reset all embed colors to default values?"
+            description="Are you sure you want to reset all embed colors to default values?",
+            guild_id=str(interaction.guild_id) if interaction.guild else None
         )
         
         # Create the view with yes/no buttons
@@ -46,11 +48,13 @@ class ColorSelector(ui.View):
             await yes_interaction.response.defer(ephemeral=True)
             try:
                 # Reset colors
-                save_colors(DEFAULT_COLORS)
+                guild_id = str(yes_interaction.guild_id) if yes_interaction.guild else None
+                save_colors(DEFAULT_COLORS, guild_id)
                 
                 success_embed = EmbedBuilder.success(
                     title="✓ Colors Reset",
-                    description="All embed colors have been reset to default values."
+                    description="All embed colors have been reset to default values.",
+                    guild_id=guild_id
                 )
                 
                 await send_ephemeral_message(yes_interaction, embed=success_embed)
@@ -59,14 +63,17 @@ class ColorSelector(ui.View):
                 log.exception(f"Error resetting colors: {e}")
                 error_embed = EmbedBuilder.error(
                     title="✗ Error",
-                    description=f"An error occurred while resetting colors: {str(e)}"
+                    description=f"An error occurred while resetting colors: {str(e)}",
+                    guild_id=str(yes_interaction.guild_id) if yes_interaction.guild else None
                 )
                 await send_ephemeral_message(yes_interaction, embed=error_embed)
         
         async def no_callback(no_interaction: discord.Interaction):
+            guild_id = str(no_interaction.guild_id) if no_interaction.guild else None
             cancel_embed = EmbedBuilder.info(
                 title="Action Cancelled",
-                description="Color reset cancelled."
+                description="Color reset cancelled.",
+                guild_id=guild_id
             )
             await no_interaction.response.edit_message(embed=cancel_embed, view=None)
         
@@ -84,9 +91,11 @@ class ColorSelector(ui.View):
     @ui.button(label="Set Color", emoji="🖌️", style=discord.ButtonStyle.secondary)
     async def set_color(self, interaction: discord.Interaction, button: ui.Button):
         """Show UI for setting colors."""
+        guild_id = str(interaction.guild_id) if interaction.guild else None
         embed = EmbedBuilder.info(
             title="Select Color Type",
-            description="Choose which type of color you want to modify:"
+            description="Choose which type of color you want to modify:",
+            guild_id=guild_id
         )
         
         # Create the view with color type buttons
@@ -111,7 +120,8 @@ class ColorSelector(ui.View):
             async def make_callback(color_value):
                 async def button_callback(button_interaction: discord.Interaction):
                     # Get current color
-                    colors = load_colors()
+                    guild_id = str(button_interaction.guild_id) if button_interaction.guild else None
+                    colors = load_colors(guild_id)
                     current_hex = color_to_hex(colors.get(color_value, 0))
                     
                     # Create modal for hex input
@@ -144,9 +154,10 @@ class ColorSelector(ui.View):
                             color_value_int = hex_to_color(hex_color)
                             
                             # Update color
-                            current_colors = load_colors()
+                            guild_id = str(modal_interaction.guild_id) if modal_interaction.guild else None
+                            current_colors = load_colors(guild_id)
                             current_colors[color_value] = color_value_int
-                            save_colors(current_colors)
+                            save_colors(current_colors, guild_id)
                             
                             # Show success with preview
                             success_embed = discord.Embed(
@@ -160,14 +171,16 @@ class ColorSelector(ui.View):
                         except ValueError:
                             error_embed = EmbedBuilder.error(
                                 title="✗ Invalid Color",
-                                description="Please provide a valid hex color (e.g. `#00FF00`)."
+                                description="Please provide a valid hex color (e.g. `#00FF00`).",
+                                guild_id=str(modal_interaction.guild_id) if modal_interaction.guild else None
                             )
                             await send_ephemeral_message(modal_interaction, embed=error_embed)
                         except Exception as e:
                             log.exception(f"Error updating color: {e}")
                             error_embed = EmbedBuilder.error(
                                 title="✗ Error",
-                                description=f"An error occurred: {str(e)}"
+                                description=f"An error occurred: {str(e)}",
+                                guild_id=str(modal_interaction.guild_id) if modal_interaction.guild else None
                             )
                             await send_ephemeral_message(modal_interaction, embed=error_embed)
                     
@@ -198,14 +211,16 @@ class MiscCog(commands.Cog, name="Misc"):
         """Display current embed colors."""
         try:
             # Load current colors
-            colors = load_colors()
+            guild_id = str(interaction.guild_id) if interaction.guild else None
+            colors = load_colors(guild_id)
             
             embeds = []
             
             # Create main info embed
             info_embed = EmbedBuilder.info(
                 title="🎨 Embed Colors",
-                description="Current embed colors for the bot:"
+                description=f"Current embed colors for {interaction.guild.name if interaction.guild else 'the bot'}:",
+                guild_id=guild_id
             )
             embeds.append(info_embed)
             
@@ -224,7 +239,8 @@ class MiscCog(commands.Cog, name="Misc"):
             log.exception(f"Error showing colors: {e}")
             embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"An error occurred while loading colors: {str(e)}"
+                description=f"An error occurred while loading colors: {str(e)}",
+                guild_id=str(interaction.guild_id) if interaction.guild else None
             )
             await send_ephemeral_message(interaction, embed=embed)
 
@@ -236,14 +252,17 @@ class MiscCog(commands.Cog, name="Misc"):
         Args:
             interaction: The interaction object
         """
+        guild_id = str(interaction.guild_id) if interaction.guild else None
+        
         # Create embed for initial message
         embed = EmbedBuilder.info(
             title="🎨 Embed Color Management",
-            description="Select an action to manage the colors used in bot embeds."
+            description=f"Select an action to manage the embed colors for {interaction.guild.name if interaction.guild else 'the bot'}.",
+            guild_id=guild_id
         )
         
         # Create view with buttons
-        view = ColorSelector(self)
+        view = ColorSelector(self, guild_id)
         
         await send_ephemeral_message(interaction, embed=embed, view=view)
         
