@@ -319,11 +319,14 @@ class RoleCog(commands.Cog, name="Roles"):
     @app_commands.command(name="syncroles", description="[Admin] Synchronize server roles with bot configuration")
     @is_owner_or_administrator()
     async def syncroles_command(self, interaction: discord.Interaction):
-        """Creates and updates roles based on the role definitions.
+        """Create or update server roles based on role definitions.
         
-        Args:
-            interaction: The interaction
+        This command will:
+        1. Check existing roles in the server
+        2. Create any missing roles from the configuration
+        3. Update existing role properties to match the configuration
         """
+        # Guard: Must be in a guild
         if not interaction.guild:
             await send_ephemeral_message(
                 interaction,
@@ -434,7 +437,7 @@ class RoleCog(commands.Cog, name="Roles"):
                 inline=False
             )
             
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
         
     @syncroles_command.error
     async def syncroles_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):

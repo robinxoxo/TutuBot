@@ -36,7 +36,7 @@ class GitHubView(discord.ui.View):
             title="✓ Channel Set",
             description="This channel has been set as the GitHub update channel!"
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed)
 
 class GitHubCog(commands.Cog, name="GitHub"):
     """GitHub integration for bot updates and changelog."""
@@ -280,48 +280,42 @@ class GitHubCog(commands.Cog, name="GitHub"):
     @app_commands.command(name="github", description="[Admin] Manage GitHub integration settings")
     @is_owner_or_administrator()
     async def github_settings(self, interaction: discord.Interaction):
-        """Manage GitHub integration settings for the bot.
-        
-        Args:
-            interaction: The Discord interaction
-        """
-        if not interaction.guild:
-            await send_ephemeral_message(
-                interaction,
-                content="This command can only be used in a server."
-            )
-            return
-            
-        # Create settings embed
+        """Manage GitHub integration settings."""
+        # Create info embed
         embed = EmbedBuilder.info(
-            title="🐙 GitHub Integration",
-            description="Manage settings for GitHub integration and updates."
+            title="<:github:1361388522517950555> GitHub Integration",
+            description="• Use this command to manage GitHub integration settings."
         )
         
-        # Show current settings
+        # Add current settings
         update_channel_id = self.settings.get("update_channel")
-        update_channel = "Not set" if not update_channel_id else f"<#{update_channel_id}>"
+        update_channel = None
         
-        embed.add_field(
-            name="Current Settings",
-            value=f"• Update Channel: {update_channel}",
-            inline=False
-        )
+        if update_channel_id:
+            update_channel = self.bot.get_channel(update_channel_id)
+            
+        if update_channel:
+            embed.add_field(
+                name="Current Update Channel:",
+                value=f"{update_channel.mention} (`{update_channel.id}`)",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="Current Update Channel:",
+                value="No channel set",
+                inline=False
+            )
         
-        embed.add_field(
-            name="Options",
-            value="• Set this channel as the GitHub update channel",
-            inline=False
-        )
-        
-        # Create settings view
+        # Create view
         view = GitHubView(self)
         
+        # Send the message
         await send_ephemeral_message(interaction, embed=embed, view=view)
-        
+
     @github_settings.error
     async def github_settings_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        """Error handler for the github_settings command."""
+        """Handle errors for the github_settings command."""
         if isinstance(error, app_commands.errors.CheckFailure):
             embed = EmbedBuilder.error(
                 title="✗ Access Denied",

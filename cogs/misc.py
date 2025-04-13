@@ -53,7 +53,7 @@ class ColorSelector(ui.View):
                     description="All embed colors have been reset to default values."
                 )
                 
-                await yes_interaction.followup.send(embed=success_embed, ephemeral=True)
+                await send_ephemeral_message(yes_interaction, embed=success_embed)
                 
             except Exception as e:
                 log.exception(f"Error resetting colors: {e}")
@@ -61,7 +61,7 @@ class ColorSelector(ui.View):
                     title="✗ Error",
                     description=f"An error occurred while resetting colors: {str(e)}"
                 )
-                await yes_interaction.followup.send(embed=error_embed, ephemeral=True)
+                await send_ephemeral_message(yes_interaction, embed=error_embed)
         
         async def no_callback(no_interaction: discord.Interaction):
             cancel_embed = EmbedBuilder.info(
@@ -79,7 +79,7 @@ class ColorSelector(ui.View):
         no_button.callback = no_callback
         view.add_item(no_button)
         
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed, view=view)
         
     @ui.button(label="Set Color", emoji="🖌️", style=discord.ButtonStyle.secondary)
     async def set_color(self, interaction: discord.Interaction, button: ui.Button):
@@ -155,21 +155,21 @@ class ColorSelector(ui.View):
                                 color=discord.Color(color_value_int)
                             )
                             
-                            await modal_interaction.followup.send(embed=success_embed, ephemeral=True)
+                            await send_ephemeral_message(modal_interaction, embed=success_embed)
                             
                         except ValueError:
                             error_embed = EmbedBuilder.error(
                                 title="✗ Invalid Color",
                                 description="Please provide a valid hex color (e.g. `#00FF00`)."
                             )
-                            await modal_interaction.followup.send(embed=error_embed, ephemeral=True)
+                            await send_ephemeral_message(modal_interaction, embed=error_embed)
                         except Exception as e:
                             log.exception(f"Error updating color: {e}")
                             error_embed = EmbedBuilder.error(
                                 title="✗ Error",
                                 description=f"An error occurred: {str(e)}"
                             )
-                            await modal_interaction.followup.send(embed=error_embed, ephemeral=True)
+                            await send_ephemeral_message(modal_interaction, embed=error_embed)
                     
                     # Set callback and send modal
                     modal.on_submit = modal_callback
@@ -181,7 +181,7 @@ class ColorSelector(ui.View):
             button.callback = await make_callback(color_type["value"])
             view.add_item(button)
         
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await send_ephemeral_message(interaction, embed=embed, view=view)
 
 class MiscCog(commands.Cog, name="Misc"):
     """Miscellaneous utility commands."""
@@ -198,36 +198,35 @@ class MiscCog(commands.Cog, name="Misc"):
         """Display current embed colors."""
         try:
             # Load current colors
-            current_colors = load_colors()
+            colors = load_colors()
             
-            # Create embeds for each color to show actual color preview
             embeds = []
             
-            # Main info embed
-            main_embed = EmbedBuilder.info(
+            # Create main info embed
+            info_embed = EmbedBuilder.info(
                 title="🎨 Embed Colors",
-                description="Current embed colors used by the bot:"
+                description="Current embed colors for the bot:"
             )
-            embeds.append(main_embed)
+            embeds.append(info_embed)
             
-            # Create an embed for each color to show actual preview
-            for name, value in current_colors.items():
-                hex_value = color_to_hex(value)
+            # Create an embed for each color type using that color
+            for color_name, color_value in colors.items():
                 color_embed = discord.Embed(
-                    title=f"{name.capitalize()}",
-                    description=f"Hex: `{hex_value}`",
-                    color=discord.Color(value)
+                    title=f"{color_name.capitalize()} Color",
+                    description=f"Hex: `{color_to_hex(color_value)}`\nValue: `{color_value}`",
+                    color=discord.Color(color_value)
                 )
                 embeds.append(color_embed)
                 
-            await interaction.followup.send(embeds=embeds, ephemeral=True)
+            await send_ephemeral_message(interaction, embeds=embeds)
+            
         except Exception as e:
             log.exception(f"Error showing colors: {e}")
             embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"An error occurred: {str(e)}"
+                description=f"An error occurred while loading colors: {str(e)}"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
 
     @app_commands.command(name="embedcolors", description="[Admin] Manage the colors used in bot embeds")
     @is_owner_or_administrator()

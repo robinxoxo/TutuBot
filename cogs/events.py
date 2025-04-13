@@ -38,7 +38,7 @@ class EventCreateModal(Modal, title="Create Event"):
                 am_pm_value = "PM"
                 time_value = time_input.replace("pm", "").strip()
             else:
-                await interaction.response.send_message("Please specify AM or PM in your time input.", ephemeral=True)
+                await send_ephemeral_message(interaction, content="Please specify AM or PM in your time input.")
                 return
                 
             # Clean up any remaining spaces or other characters
@@ -64,13 +64,13 @@ class EventCreateModal(Modal, title="Create Event"):
                     break
                     
             if not separator:
-                await interaction.response.send_message("Invalid date format! Please use a separator like - or / between date parts.", ephemeral=True)
+                await send_ephemeral_message(interaction, content="Invalid date format! Please use a separator like - or / between date parts.")
                 return
                 
             # Split date parts
             date_parts = date_input.split(separator)
             if len(date_parts) != 3:
-                await interaction.response.send_message("Date must have 3 parts: day, month, and year!", ephemeral=True)
+                await send_ephemeral_message(interaction, content="Date must have 3 parts: day, month, and year!")
                 return
                 
             # Try to determine format and convert to DD, MM, YYYY
@@ -88,7 +88,7 @@ class EventCreateModal(Modal, title="Create Event"):
                 else:  # Ambiguous, assume MM-DD-YYYY as default format
                     month, day, year = date_parts
             else:
-                await interaction.response.send_message("Year must be 4 digits (YYYY)!", ephemeral=True)
+                await send_ephemeral_message(interaction, content="Year must be 4 digits (YYYY)!")
                 return
                 
             # Standardize to DD-MM-YYYY for datetime parsing
@@ -98,7 +98,7 @@ class EventCreateModal(Modal, title="Create Event"):
             date_obj = datetime.strptime(f"{standard_date} {time_str}", "%d-%m-%Y %H:%M")
             await interaction.response.defer()
         except ValueError as e:
-            await interaction.response.send_message(f"Invalid date or time format! Please check your input. Error: {str(e)}", ephemeral=True)
+            await send_ephemeral_message(interaction, content=f"Invalid date or time format! Please check your input. Error: {str(e)}")
             return
             
         await self.callback(interaction, self.event_name.value, date_obj, self.event_description.value)
@@ -137,7 +137,7 @@ class StatusButton(Button):
         
         # Verify that the event still exists
         if self.event_id not in self.cog.events:
-            await interaction.response.send_message("This event no longer exists.", ephemeral=True)
+            await send_ephemeral_message(interaction, content="This event no longer exists.")
             return
         
         # Remove user from all statuses first
@@ -178,7 +178,7 @@ class EventPostSelect(Select):
     
     async def callback(self, interaction: discord.Interaction):
         if self.values[0] == "none":
-            await interaction.response.send_message("No events are currently scheduled.", ephemeral=True)
+            await send_ephemeral_message(interaction, content="No events are currently scheduled.")
             return
             
         event_id = int(self.values[0])
@@ -498,69 +498,41 @@ class EventSchedulerCog(commands.Cog):
 
     async def post_event(self, interaction, event_id):
         """Post an event to the current channel"""
+        # Check if the event exists
         if event_id not in self.events:
             await send_ephemeral_message(interaction, content="This event no longer exists.")
             return
             
-        # Get current channel ID and event data
-        channel_id = str(interaction.channel_id)
         event_data = self.events[event_id]
-        posted_info = event_data.get("posted", {})
         
-        # Initialize posted data if it doesn't exist
-        if "posted" not in event_data:
-            event_data["posted"] = {}
-        
-        # Delete this event from ALL channels it's posted in
-        deleted_messages = []
-        for old_channel_id, message_id in list(posted_info.items()):
-            try:
-                # Try to get the channel
-                channel = self.bot.get_channel(int(old_channel_id))
-                if channel:
-                    # Try to get and delete the message
-                    message = await channel.fetch_message(int(message_id))
-                    if message:
-                        await message.delete()
-                        deleted_messages.append(old_channel_id)
-                        print(f"Deleted event post in channel {old_channel_id}")
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
-                print(f"Could not delete event message in channel {old_channel_id}: {e}")
-        
-        # Remove deleted messages from the posted info
-        for old_channel_id in deleted_messages:
-            del event_data["posted"][old_channel_id]
-            
-        # Clear out the posted info completely since we're enforcing a single post policy
-        event_data["posted"] = {}
-        
-        # Create the embed and view for the event
+        # Create embed and view
         embed = self.create_event_embed(event_id)
         view = EventSignupView(self, event_id)
         
         # Register the view for persistence
         self.bot.add_view(view)
         
-        # Post the event
-        event_message = await interaction.channel.send(embed=embed, view=view)
+        # Defer in case interaction response is taking time
+        if not interaction.response.is_done():
+            await interaction.response.defer()
         
-        # Store the message ID in the new channel only
-        event_data["posted"][channel_id] = event_message.id
+        # Send the event message
+        event_message = await interaction.followup.send(embed=embed, view=view)
+        
+        # Track where this event has been posted
+        channel_id = str(interaction.channel_id)
+        self.events[event_id]["posted"][channel_id] = event_message.id
+        
+        # Update events data
         self.save_events()
         
-        # Report success, including information about cleanup
-        if deleted_messages:
-            await send_ephemeral_message(
-                interaction, 
-                content=f"Event posted successfully! Removed {len(deleted_messages)} previous post(s)."
-            )
-        else:
-            await send_ephemeral_message(interaction, content=f"Event posted successfully!")
+        # Send confirmation
+        await send_ephemeral_message(interaction, content=f"Event posted successfully!")
 
     @events.error
     async def events_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        """Error handler for the events command."""
-        if isinstance(error, app_commands.errors.CheckFailure):
+        """Handle errors in the events command"""
+        if isinstance(error, app_commands.errors.MissingPermissions):
             embed = EmbedBuilder.error(
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
@@ -569,10 +541,9 @@ class EventSchedulerCog(commands.Cog):
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"An error occurred: {str(error)}"
+                description=f"An unexpected error occurred: {str(error)}"
             )
             await send_ephemeral_message(interaction, embed=embed)
-            log.error(f"Error in events command: {error}")
 
 async def setup(bot):
     await bot.add_cog(EventSchedulerCog(bot))

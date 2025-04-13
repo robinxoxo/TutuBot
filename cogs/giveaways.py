@@ -239,25 +239,23 @@ class GiveawayManagementView(ui.View):
     @ui.button(label="List Active Giveaways", emoji="📋", style=discord.ButtonStyle.secondary, row=0)
     async def list_giveaways(self, interaction: discord.Interaction, button: ui.Button):
         """List all active giveaways."""
-        # Check if there are active giveaways before deferring
-        guild_id = str(interaction.guild_id)
+        await interaction.response.defer(ephemeral=True)
+        
+        guild_id = str(interaction.guild.id)
         active_giveaways = self.cog.get_active_giveaways(guild_id)
         
         if not active_giveaways:
             embed = EmbedBuilder.info(
-                title="No Active Giveaways",
+                title="📋 Active Giveaways",
                 description="There are no active giveaways in this server."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
-        # If there are giveaways, proceed with listing them
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        # Create embed listing all active giveaways
+        # Create embed
         embed = EmbedBuilder.info(
-            title="🎁 Active Giveaways",
-            description=f"There are currently **{len(active_giveaways)}** active giveaways in this server."
+            title="📋 Active Giveaways",
+            description=f"There are **{len(active_giveaways)}** active giveaways in this server."
         )
         
         for giveaway_id, giveaway in active_giveaways.items():
@@ -294,7 +292,7 @@ class GiveawayManagementView(ui.View):
                 title="✗ Access Denied",
                 description="Only administrators can end giveaways."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Check if there are active giveaways before deferring
@@ -306,7 +304,7 @@ class GiveawayManagementView(ui.View):
                 title="No Active Giveaways",
                 description="There are currently no active giveaways to end."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # If there are giveaways, defer the response and continue
@@ -363,7 +361,7 @@ class GiveawayManagementView(ui.View):
                 title="✗ Access Denied",
                 description="Only administrators can reroll winners."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -433,11 +431,11 @@ class GiveawayManagementView(ui.View):
                 title="✗ Access Denied",
                 description="Only administrators can manage giveaway permissions."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         if not interaction.guild:
-            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+            await send_ephemeral_message(interaction, content="This command can only be used in a server.")
             return
         
         # Show permissions management view
@@ -787,7 +785,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Giveaway Not Found",
                 description="The specified giveaway was not found."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         if giveaway["status"] != "active":
@@ -795,7 +793,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Not Active",
                 description="This giveaway has already ended."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Check if user is authorized to end the giveaway
@@ -807,7 +805,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Not Authorized",
                 description="You must be the giveaway host or an administrator to end this giveaway."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # End the giveaway
@@ -818,7 +816,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
             description=f"The giveaway for **{giveaway['prize']}** has been ended."
         )
         
-        await send_ephemeral_message(interaction, embed=embed, view=None)
+        await send_ephemeral_message(interaction, embed=embed)
     
     async def reroll_giveaway(self, interaction: discord.Interaction, giveaway_id: str):
         """Reroll winners for a completed giveaway."""
@@ -828,7 +826,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Giveaway Not Found",
                 description="The specified giveaway was not found."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         if giveaway["status"] != "completed":
@@ -836,7 +834,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Not Completed",
                 description="Only completed giveaways can be rerolled."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Check if user is authorized to reroll the giveaway
@@ -848,7 +846,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Not Authorized",
                 description="You must be the giveaway host or an administrator to reroll this giveaway."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Get participants and select new winners
@@ -858,7 +856,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ No Participants",
                 description="Cannot reroll because there were no participants in this giveaway."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             return
             
         # Ask for how many winners to reroll
@@ -982,44 +980,30 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
     @app_commands.command(name="giveaways", description="[Admin] Manage and start giveaways!")
     async def giveaway_command(self, interaction: discord.Interaction):
         """Command to manage giveaways."""
-        # Check if the user has basic permission to use this command
-        if not interaction.guild or not isinstance(interaction.user, discord.Member):
-            embed = EmbedBuilder.error(
-                title="✗ Error",
-                description="This command can only be used in a server."
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+        # Check if this is a guild interaction
+        if not interaction.guild:
+            await send_ephemeral_message(interaction, content="This command can only be used in a server.")
             return
             
-        # Check if user is admin/owner or has allowed role
+        # Check if user has permission
         is_admin = await check_owner_or_admin(interaction)
-        has_permission = is_admin or self.user_can_use_command(interaction.user)
+        can_use = is_admin or self.user_can_use_command(interaction.user)
         
-        if not has_permission:
+        if not can_use:
             embed = EmbedBuilder.error(
                 title="✗ Access Denied",
-                description="You don't have permission to use this command."
+                description="You don't have permission to use the giveaway command."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await send_ephemeral_message(interaction, embed=embed)
             return
         
-        # Create embed for giveaway management
+        # Create embed and view for giveaway management
         embed = EmbedBuilder.info(
-            title="🎁 Giveaway Management",
-            description="Use the buttons below to manage giveaways in this server."
+            title="🎉 Giveaway Management",
+            description="Select an action to manage giveaways."
         )
         
-        # Add note about limited permissions for non-admin users
-        if not is_admin:
-            embed.add_field(
-                name="Note",
-                value="As a non-administrator, you can only create giveaways and view active giveaways.",
-                inline=False
-            )
-        
-        # Create management view with admin status
-        view = GiveawayManagementView(self, is_admin=is_admin)
-        
+        view = GiveawayManagementView(self, is_admin)
         await send_ephemeral_message(interaction, embed=embed, view=view)
     
     @giveaway_command.error
@@ -1030,13 +1014,13 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An error occurred: {str(error)}"
             )
-            await send_ephemeral_message(interaction, embed=embed, view=None)
+            await send_ephemeral_message(interaction, embed=embed)
             log.error(f"Error in giveaway command: {error}")
 
     def user_can_use_command(self, user: discord.Member) -> bool:
