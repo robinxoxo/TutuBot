@@ -38,7 +38,7 @@ class EventCreateModal(Modal, title="Create Event"):
                 am_pm_value = "PM"
                 time_value = time_input.replace("pm", "").strip()
             else:
-                await send_ephemeral_message(interaction, content="Please specify AM or PM in your time input.")
+                await interaction.response.send_message(content="Please specify AM or PM in your time input.", ephemeral=True)
                 return
                 
             # Clean up any remaining spaces or other characters
@@ -64,13 +64,13 @@ class EventCreateModal(Modal, title="Create Event"):
                     break
                     
             if not separator:
-                await send_ephemeral_message(interaction, content="Invalid date format! Please use a separator like - or / between date parts.")
+                await interaction.response.send_message(content="Invalid date format! Please use a separator like - or / between date parts.", ephemeral=True)
                 return
                 
             # Split date parts
             date_parts = date_input.split(separator)
             if len(date_parts) != 3:
-                await send_ephemeral_message(interaction, content="Date must have 3 parts: day, month, and year!")
+                await interaction.response.send_message(content="Date must have 3 parts: day, month, and year!", ephemeral=True)
                 return
                 
             # Try to determine format and convert to DD, MM, YYYY
@@ -88,7 +88,7 @@ class EventCreateModal(Modal, title="Create Event"):
                 else:  # Ambiguous, assume MM-DD-YYYY as default format
                     month, day, year = date_parts
             else:
-                await send_ephemeral_message(interaction, content="Year must be 4 digits (YYYY)!")
+                await interaction.response.send_message(content="Year must be 4 digits (YYYY)!", ephemeral=True)
                 return
                 
             # Standardize to DD-MM-YYYY for datetime parsing
@@ -98,7 +98,7 @@ class EventCreateModal(Modal, title="Create Event"):
             date_obj = datetime.strptime(f"{standard_date} {time_str}", "%d-%m-%Y %H:%M")
             await interaction.response.defer()
         except ValueError as e:
-            await send_ephemeral_message(interaction, content=f"Invalid date or time format! Please check your input. Error: {str(e)}")
+            await interaction.response.send_message(content=f"Invalid date or time format! Please check your input. Error: {str(e)}", ephemeral=True)
             return
             
         await self.callback(interaction, self.event_name.value, date_obj, self.event_description.value)
@@ -137,7 +137,7 @@ class StatusButton(Button):
         
         # Verify that the event still exists
         if self.event_id not in self.cog.events:
-            await send_ephemeral_message(interaction, content="This event no longer exists.")
+            await interaction.response.send_message(content="This event no longer exists.", ephemeral=True)
             return
         
         # Remove user from all statuses first
@@ -178,7 +178,7 @@ class EventPostSelect(Select):
     
     async def callback(self, interaction: discord.Interaction):
         if self.values[0] == "none":
-            await send_ephemeral_message(interaction, content="No events are currently scheduled.")
+            await interaction.response.send_message(content="No events are currently scheduled.", ephemeral=True)
             return
             
         event_id = int(self.values[0])
@@ -213,17 +213,17 @@ class EventDeleteSelect(Select):
     
     async def callback(self, interaction: discord.Interaction):
         if self.values[0] == "none":
-            await send_ephemeral_message(interaction, content="No events are currently scheduled.")
+            await interaction.response.send_message(content="No events are currently scheduled.", ephemeral=True)
             return
             
         event_id = int(self.values[0])
         
         # Show confirmation
         view = EventDeleteConfirmView(self.cog, event_id)
-        await send_ephemeral_message(
-            interaction,
+        await interaction.response.send_message(
             content=f"⚠️ Are you sure you want to delete this event? This action cannot be undone.",
-            view=view
+            view=view,
+            ephemeral=True
         )
 
 class EventDeleteView(View):
@@ -250,7 +250,7 @@ class EventDeleteConfirmView(View):
     
     async def confirm_callback(self, interaction: discord.Interaction):
         if self.event_id not in self.cog.events:
-            await send_ephemeral_message(interaction, content="This event no longer exists.")
+            await interaction.response.send_message(content="This event no longer exists.", ephemeral=True)
             return
         
         # Get the event data
@@ -276,10 +276,10 @@ class EventDeleteConfirmView(View):
         # Save updated events data
         self.cog.save_events()
         
-        await send_ephemeral_message(interaction, content=f"✓ Event '{event_name}' has been deleted.")
+        await interaction.response.send_message(content=f"✓ Event '{event_name}' has been deleted.", ephemeral=True)
     
     async def cancel_callback(self, interaction: discord.Interaction):
-        await send_ephemeral_message(interaction, content="Event deletion canceled.")
+        await interaction.response.send_message(content="Event deletion canceled.", ephemeral=True)
 
 class EventSchedulerCog(commands.Cog):
     def __init__(self, bot):
@@ -376,19 +376,19 @@ class EventSchedulerCog(commands.Cog):
             
         async def post_callback(interaction):
             if not self.events:
-                await send_ephemeral_message(interaction, content="There are no events to post.")
+                await interaction.response.send_message(content="There are no events to post.", ephemeral=True)
                 return
                 
             view = EventPostView(self)
-            await send_ephemeral_message(interaction, content="Select an event to post in this channel:", view=view)
+            await interaction.response.send_message(content="Select an event to post in this channel:", view=view, ephemeral=True)
         
         async def delete_callback(interaction):
             if not self.events:
-                await send_ephemeral_message(interaction, content="There are no events to delete.")
+                await interaction.response.send_message(content="There are no events to delete.", ephemeral=True)
                 return
                 
             view = EventDeleteView(self)
-            await send_ephemeral_message(interaction, content="Select an event to delete:", view=view)
+            await interaction.response.send_message(content="Select an event to delete:", view=view, ephemeral=True)
             
         create_button.callback = create_callback
         post_button.callback = post_callback
@@ -398,7 +398,7 @@ class EventSchedulerCog(commands.Cog):
         view.add_item(post_button)
         view.add_item(delete_button)
         
-        await send_ephemeral_message(interaction, embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
     async def create_event_callback(self, interaction, name, date, description):
         """Callback for event creation modal"""
@@ -500,7 +500,7 @@ class EventSchedulerCog(commands.Cog):
         """Post an event to the current channel"""
         # Check if the event exists
         if event_id not in self.events:
-            await send_ephemeral_message(interaction, content="This event no longer exists.")
+            await interaction.response.send_message(content="This event no longer exists.", ephemeral=True)
             return
             
         event_data = self.events[event_id]
@@ -527,7 +527,7 @@ class EventSchedulerCog(commands.Cog):
         self.save_events()
         
         # Send confirmation
-        await send_ephemeral_message(interaction, content=f"Event posted successfully!")
+        await interaction.followup.send(content=f"Event posted successfully!", ephemeral=True)
 
     @events.error
     async def events_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -537,13 +537,13 @@ class EventSchedulerCog(commands.Cog):
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An unexpected error occurred: {str(error)}"
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EventSchedulerCog(bot))

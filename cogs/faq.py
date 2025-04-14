@@ -106,7 +106,7 @@ class FaqCog(commands.Cog, name="FAQ"):
 
         embed.set_footer(text="Use the slash (/) to invoke commands")
 
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the FaqCog.

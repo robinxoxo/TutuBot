@@ -7,10 +7,6 @@ import asyncio
 # For type hinting
 if TYPE_CHECKING:
     from main import TutuBot
-    from utils.interaction_utils import send_ephemeral_message
-else:
-    # Import at runtime to prevent circular imports
-    from utils.interaction_utils import send_ephemeral_message
 
 T = TypeVar('T')
 
@@ -74,7 +70,7 @@ async def admin_check_with_response(interaction: discord.Interaction) -> bool:
     if await check_owner_or_admin(interaction):
         return True
     
-    # Send error message using the utility function
+    # Send error message using the default discord.py ephemeral response
     from utils.embed_builder import EmbedBuilder
     
     embed = EmbedBuilder.error(
@@ -83,6 +79,6 @@ async def admin_check_with_response(interaction: discord.Interaction) -> bool:
         guild_id=str(interaction.guild_id) if interaction.guild else None
     )
     
-    await send_ephemeral_message(interaction, embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
     
     return False 

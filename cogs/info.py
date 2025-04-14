@@ -38,9 +38,9 @@ class InfoCog(commands.Cog, name="Info"):
         """
         # Ensure this is used in a server
         if not interaction.guild:
-            await send_ephemeral_message(
-                interaction,
-                content="This command can only be used in servers."
+            await interaction.response.send_message(
+                content="This command can only be used in servers.",
+                ephemeral=True
             )
             return
         
@@ -121,7 +121,7 @@ class InfoCog(commands.Cog, name="Info"):
             inline=False
         )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         
     @app_commands.command(name="userinfo", description="Show information about a user")
     @app_commands.describe(user="The user to get information about (defaults to yourself)")
@@ -254,7 +254,7 @@ class InfoCog(commands.Cog, name="Info"):
                     inline=True
                 )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="avatar", description="Show a user's avatar")
     @app_commands.describe(user="The user whose avatar to show (defaults to yourself)")
@@ -276,7 +276,7 @@ class InfoCog(commands.Cog, name="Info"):
                 title="No Avatar Found",
                 description=f"{target_user.mention} doesn't have a custom avatar."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         # Create embed with avatar
@@ -312,7 +312,7 @@ class InfoCog(commands.Cog, name="Info"):
         else:
             embed.description = "This user has no custom avatar."
             
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="roleinfo", description="Show information about a role")
     @app_commands.describe(role="The role to get information about")
@@ -415,7 +415,7 @@ class InfoCog(commands.Cog, name="Info"):
                 inline=False
             )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="botinfo", description="Show information about the bot")
     async def show_bot_info(self, interaction: discord.Interaction):
@@ -487,7 +487,7 @@ class InfoCog(commands.Cog, name="Info"):
               
         embed.set_footer(text=f"ID: {bot_user.id}")
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot: 'TutuBot'):
     """Sets up the InfoCog.

@@ -90,7 +90,7 @@ class CogManager(commands.Cog):
                 title="✗ Invalid Sync Type",
                 description="Invalid sync type. Please use 'guild' or 'global'."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         try:
@@ -105,7 +105,7 @@ class CogManager(commands.Cog):
             else:
                 # Check if in guild
                 if not interaction.guild:
-                    await send_ephemeral_message(interaction, content="Guild sync must be used in a server.")
+                    await interaction.response.send_message(content="Guild sync must be used in a server.", ephemeral=True)
                     return
                 # Sync guild-specific commands
                 self.bot.tree.copy_global_to(guild=interaction.guild)
@@ -121,7 +121,7 @@ class CogManager(commands.Cog):
                 title="✗ Sync Failed",
                 description=f"Failed to sync commands: {str(e)}"
             )
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="load", description="[Admin] Loads a specified cog.")
     @is_owner_or_administrator()
@@ -139,7 +139,7 @@ class CogManager(commands.Cog):
                 title="✗ Already Loaded",
                 description=f"The cog `{cog_name}` is already loaded."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         # Try to load the cog
@@ -159,7 +159,7 @@ class CogManager(commands.Cog):
                 description=f"Failed to load `{cog_name}`: {str(e)}"
             )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="unload", description="[Admin] Unloads a specified cog.")
     @is_owner_or_administrator()
@@ -173,7 +173,7 @@ class CogManager(commands.Cog):
                 title="✗ Cannot Unload",
                 description="You cannot unload the CogManager cog."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         # Check if the cog exists and is loaded
@@ -185,7 +185,7 @@ class CogManager(commands.Cog):
                 title="✗ Cog Not Loaded",
                 description=f"The cog `{cog_name}` is not currently loaded."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         # Try to unload the cog
@@ -205,7 +205,7 @@ class CogManager(commands.Cog):
                 description=f"Failed to unload `{cog_name}`: {str(e)}"
             )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="reload", description="[Admin] Reloads a specified cog.")
     @is_owner_or_administrator()
@@ -223,7 +223,7 @@ class CogManager(commands.Cog):
                 title="✗ Not Loaded",
                 description=f"The cog `{cog_name}` is not currently loaded and cannot be reloaded."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         
         # Try to reload the cog
@@ -243,7 +243,7 @@ class CogManager(commands.Cog):
                 description=f"Failed to reload `{cog_name}`: {str(e)}"
             )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="list", description="[Admin] Lists available and loaded cogs.")
     @is_owner_or_administrator()
@@ -286,7 +286,7 @@ class CogManager(commands.Cog):
             inline=False
         )
         
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # Simplified setup function

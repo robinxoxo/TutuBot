@@ -36,7 +36,7 @@ class GitHubView(discord.ui.View):
             title="✓ Channel Set",
             description="This channel has been set as the GitHub update channel!"
         )
-        await send_ephemeral_message(interaction, embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class GitHubCog(commands.Cog, name="GitHub"):
     """GitHub integration for bot updates and changelog."""
@@ -311,7 +311,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         view = GitHubView(self)
         
         # Send the message
-        await send_ephemeral_message(interaction, embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @github_settings.error
     async def github_settings_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -321,13 +321,13 @@ class GitHubCog(commands.Cog, name="GitHub"):
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An error occurred: {str(error)}"
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             log.error(f"Error in github_settings command: {error}")
 
 async def setup(bot: 'TutuBot'):

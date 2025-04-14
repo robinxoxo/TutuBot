@@ -38,7 +38,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error",
                 description="Cannot determine the current channel."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         # Update the notification channel for this guild
@@ -48,7 +48,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error",
                 description="This command can only be used in a server."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         channel_id = interaction.channel_id
@@ -74,7 +74,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error", 
                 description="This command can only be used in a server."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         # Get current settings for this guild
@@ -122,7 +122,7 @@ class StreamingSettingsView(ui.View):
                 title="✗ Error",
                 description="This command can only be used in a server."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         # Get current settings for this guild
@@ -377,7 +377,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
                 title="✗ Error",
                 description="This command can only be used in a server."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         # Create embed with information about streaming notifications
@@ -400,7 +400,7 @@ class StreamingCog(commands.Cog, name="Streaming"):
         # Create view with buttons
         view = StreamingSettingsView(self)
         
-        await send_ephemeral_message(interaction, embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         
     @streaming.error
     async def streaming_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -415,13 +415,13 @@ class StreamingCog(commands.Cog, name="Streaming"):
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An error occurred: {str(error)}"
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             log.error(f"Error in streaming command: {error}")
 
 async def setup(bot: 'TutuBot'):

@@ -8,7 +8,6 @@ from typing import Optional, List, Dict, Any
 from utils.permission_checks import admin_check_with_response, is_owner_or_administrator
 from utils.embed_colors import load_colors, save_colors, hex_to_color, color_to_hex, DEFAULT_COLORS
 from utils.embed_builder import EmbedBuilder
-from utils.interaction_utils import send_ephemeral_message
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -57,7 +56,7 @@ class ColorSelector(ui.View):
                     guild_id=guild_id
                 )
                 
-                await send_ephemeral_message(yes_interaction, embed=success_embed)
+                await interaction.response.send_message(embed=success_embed, ephemeral=True)
                 
             except Exception as e:
                 log.exception(f"Error resetting colors: {e}")
@@ -66,7 +65,7 @@ class ColorSelector(ui.View):
                     description=f"An error occurred while resetting colors: {str(e)}",
                     guild_id=str(yes_interaction.guild_id) if yes_interaction.guild else None
                 )
-                await send_ephemeral_message(yes_interaction, embed=error_embed)
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
         
         async def no_callback(no_interaction: discord.Interaction):
             guild_id = str(no_interaction.guild_id) if no_interaction.guild else None
@@ -86,7 +85,7 @@ class ColorSelector(ui.View):
         no_button.callback = no_callback
         view.add_item(no_button)
         
-        await send_ephemeral_message(interaction, embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         
     @ui.button(label="Set Color", emoji="🖌️", style=discord.ButtonStyle.secondary)
     async def set_color(self, interaction: discord.Interaction, button: ui.Button):
@@ -166,7 +165,7 @@ class ColorSelector(ui.View):
                                 color=discord.Color(color_value_int)
                             )
                             
-                            await send_ephemeral_message(modal_interaction, embed=success_embed)
+                            await interaction.response.send_message(embed=success_embed, ephemeral=True)
                             
                         except ValueError:
                             error_embed = EmbedBuilder.error(
@@ -174,7 +173,7 @@ class ColorSelector(ui.View):
                                 description="Please provide a valid hex color (e.g. `#00FF00`).",
                                 guild_id=str(modal_interaction.guild_id) if modal_interaction.guild else None
                             )
-                            await send_ephemeral_message(modal_interaction, embed=error_embed)
+                            await interaction.response.send_message(embed=error_embed, ephemeral=True)
                         except Exception as e:
                             log.exception(f"Error updating color: {e}")
                             error_embed = EmbedBuilder.error(
@@ -182,7 +181,7 @@ class ColorSelector(ui.View):
                                 description=f"An error occurred: {str(e)}",
                                 guild_id=str(modal_interaction.guild_id) if modal_interaction.guild else None
                             )
-                            await send_ephemeral_message(modal_interaction, embed=error_embed)
+                            await interaction.response.send_message(embed=error_embed, ephemeral=True)
                     
                     # Set callback and send modal
                     modal.on_submit = modal_callback
@@ -194,7 +193,7 @@ class ColorSelector(ui.View):
             button.callback = await make_callback(color_type["value"])
             view.add_item(button)
         
-        await send_ephemeral_message(interaction, embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 class MiscCog(commands.Cog, name="Misc"):
     """Miscellaneous utility commands."""
@@ -233,7 +232,7 @@ class MiscCog(commands.Cog, name="Misc"):
                 )
                 embeds.append(color_embed)
                 
-            await send_ephemeral_message(interaction, embeds=embeds)
+            await interaction.response.send_message(embeds=embeds, ephemeral=True)
             
         except Exception as e:
             log.exception(f"Error showing colors: {e}")
@@ -242,7 +241,7 @@ class MiscCog(commands.Cog, name="Misc"):
                 description=f"An error occurred while loading colors: {str(e)}",
                 guild_id=str(interaction.guild_id) if interaction.guild else None
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="embedcolors", description="[Admin] Manage the colors used in bot embeds")
     @is_owner_or_administrator()
@@ -264,7 +263,7 @@ class MiscCog(commands.Cog, name="Misc"):
         # Create view with buttons
         view = ColorSelector(self, guild_id)
         
-        await send_ephemeral_message(interaction, embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         
     @manage_colors.error
     async def manage_colors_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -274,13 +273,13 @@ class MiscCog(commands.Cog, name="Misc"):
                 title="✗ Access Denied",
                 description="You need administrator permissions to use this command."
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"An error occurred: {str(error)}"
             )
-            await send_ephemeral_message(interaction, embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             log.error(f"Error in embedcolors command: {error}")
 
 async def setup(bot: 'TutuBot'):
