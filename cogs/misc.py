@@ -5,7 +5,7 @@ import logging
 import typing
 from typing import Optional, List, Dict, Any
 
-from utils.permission_checks import admin_check_with_response, is_owner_or_administrator
+from cogs.permissions import admin_check_with_response, is_owner_or_administrator
 from utils.embed_colors import load_colors, save_colors, hex_to_color, color_to_hex, DEFAULT_COLORS
 from utils.embed_builder import EmbedBuilder
 

@@ -9,15 +9,12 @@ import json
 from datetime import datetime
 import aiohttp
 
-from utils.permission_checks import is_owner_or_administrator
+from cogs.permissions import is_owner_or_administrator
 from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if TYPE_CHECKING:
     from main import TutuBot
-else:
-    # Import at runtime to prevent circular imports
-    from utils.interaction_utils import send_ephemeral_message
 
 # Configure logging
 log = logging.getLogger(__name__)

@@ -11,13 +11,12 @@ import json
 import re
 import asyncio
 
-# Import utilities - prevent circular imports
+# For type hinting only
 if TYPE_CHECKING:
-    pass  # No need for circular imports in type checking
-else:
-    from utils.interaction_utils import send_ephemeral_message
+    from main import TutuBot
+    
 from utils.embed_builder import EmbedBuilder
-from utils.permission_checks import is_owner_or_administrator
+from cogs.permissions import is_owner_or_administrator
 
 class EventCreateModal(Modal, title="Create Event"):
     event_name = TextInput(label="Event Name", placeholder="Enter event name", required=True)

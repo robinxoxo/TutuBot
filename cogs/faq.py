@@ -9,10 +9,7 @@ from utils.embed_builder import EmbedBuilder
 # For type hinting only
 if typing.TYPE_CHECKING:
     from main import TutuBot
-else:
-    # Import at runtime to prevent circular imports
-    from utils.interaction_utils import send_ephemeral_message
-
+    
 # Configure logging
 log = logging.getLogger(__name__)
 

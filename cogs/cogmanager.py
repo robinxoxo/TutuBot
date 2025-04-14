@@ -12,16 +12,13 @@ import importlib
 import pkgutil
 from typing import List, Dict, Any, Optional, Union, Set, TYPE_CHECKING
 
-from utils.permission_checks import is_owner_or_administrator, admin_check_with_response
+from cogs.permissions import is_owner_or_administrator, admin_check_with_response
 from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
     # Need to import the bot class for type hints
     from main import TutuBot
-else:
-    # Import at runtime to prevent circular imports
-    from utils.interaction_utils import send_ephemeral_message
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -90,7 +87,7 @@ class CogManager(commands.Cog):
                 title="✗ Invalid Sync Type",
                 description="Invalid sync type. Please use 'guild' or 'global'."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
         try:
@@ -105,7 +102,7 @@ class CogManager(commands.Cog):
             else:
                 # Check if in guild
                 if not interaction.guild:
-                    await interaction.response.send_message(content="Guild sync must be used in a server.", ephemeral=True)
+                    await interaction.followup.send(content="Guild sync must be used in a server.", ephemeral=True)
                     return
                 # Sync guild-specific commands
                 self.bot.tree.copy_global_to(guild=interaction.guild)
@@ -121,7 +118,7 @@ class CogManager(commands.Cog):
                 title="✗ Sync Failed",
                 description=f"Failed to sync commands: {str(e)}"
             )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="load", description="[Admin] Loads a specified cog.")
     @is_owner_or_administrator()
@@ -139,7 +136,7 @@ class CogManager(commands.Cog):
                 title="✗ Already Loaded",
                 description=f"The cog `{cog_name}` is already loaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
         # Try to load the cog
@@ -159,7 +156,7 @@ class CogManager(commands.Cog):
                 description=f"Failed to load `{cog_name}`: {str(e)}"
             )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="unload", description="[Admin] Unloads a specified cog.")
     @is_owner_or_administrator()
@@ -173,7 +170,7 @@ class CogManager(commands.Cog):
                 title="✗ Cannot Unload",
                 description="You cannot unload the CogManager cog."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
         # Check if the cog exists and is loaded
@@ -185,7 +182,7 @@ class CogManager(commands.Cog):
                 title="✗ Cog Not Loaded",
                 description=f"The cog `{cog_name}` is not currently loaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
         # Try to unload the cog
@@ -205,7 +202,7 @@ class CogManager(commands.Cog):
                 description=f"Failed to unload `{cog_name}`: {str(e)}"
             )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="reload", description="[Admin] Reloads a specified cog.")
     @is_owner_or_administrator()
@@ -223,7 +220,7 @@ class CogManager(commands.Cog):
                 title="✗ Not Loaded",
                 description=f"The cog `{cog_name}` is not currently loaded and cannot be reloaded."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
         # Try to reload the cog
@@ -243,7 +240,7 @@ class CogManager(commands.Cog):
                 description=f"Failed to reload `{cog_name}`: {str(e)}"
             )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="list", description="[Admin] Lists available and loaded cogs.")
     @is_owner_or_administrator()
@@ -256,16 +253,13 @@ class CogManager(commands.Cog):
             description="Overview of loaded and available cogs."
         )
         
-        # Get loaded cogs
-        loaded_cog_names = sorted(self.bot.cogs.keys())
-        loaded_cogs_text = "\n".join(f"• {cog}" for cog in loaded_cog_names) or "None"
-        embed.add_field(name=f"✓ Loaded Cogs ({len(loaded_cog_names)})", value=loaded_cogs_text, inline=False)
+        # Get loaded cogs (use fully qualified module names for consistency)
+        loaded_modules = sorted(self.bot.extensions.keys())
+        loaded_cogs_text = "\n".join(f"• {cog}" for cog in loaded_modules) or "None"
+        embed.add_field(name=f"✓ Loaded Cogs ({len(loaded_modules)})", value=loaded_cogs_text, inline=False)
         
         # Get all available cogs - use global function
         available_cogs = get_available_cogs()
-        
-        # Get the list of loaded modules (fully qualified names)
-        loaded_modules = list(self.bot.extensions.keys())
         
         # Find unloaded cogs by checking which available modules aren't loaded
         unloaded_cogs = [cog for cog in available_cogs if cog not in loaded_modules]
@@ -286,7 +280,7 @@ class CogManager(commands.Cog):
             inline=False
         )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 # Simplified setup function

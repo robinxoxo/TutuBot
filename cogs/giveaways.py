@@ -11,15 +11,12 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set, Any, TYPE_CHECKING
 
 # Import permission checks and UI utilities
-from utils.permission_checks import is_owner_or_administrator, check_owner_or_admin
+from cogs.permissions import is_owner_or_administrator, check_owner_or_admin
 from utils.embed_builder import EmbedBuilder
 
 # For type hinting only
 if typing.TYPE_CHECKING:
     from main import TutuBot
-else:
-    # Import at runtime to prevent circular imports
-    pass
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -643,7 +640,7 @@ class GiveawayCog(commands.Cog, name="Giveaways"):
                 description=f"Your giveaway for **{prize}** has been created and will end <t:{int(ends_at.timestamp())}:R>."
             )
             await interaction.followup.send(embed=success_embed, ephemeral=True)
-            
+        
         except Exception as e:
             log.error(f"Error creating giveaway: {e}")
             error_embed = EmbedBuilder.error(

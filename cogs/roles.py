@@ -6,15 +6,12 @@ import typing
 from typing import List, Dict, Optional, Any, TYPE_CHECKING
 
 from utils.role_definitions import RoleCategory, ROLE_DEFINITIONS
-from utils.permission_checks import is_owner_or_administrator
+from cogs.permissions import is_owner_or_administrator
 from utils.embed_builder import EmbedBuilder
 
 # Import utilities - prevent circular imports
 if typing.TYPE_CHECKING:
     from main import TutuBot
-else:
-    # Import interaction utils at runtime
-    from utils.interaction_utils import send_ephemeral_message
 
 log = logging.getLogger(__name__)
 
@@ -525,8 +522,8 @@ class RoleCog(commands.Cog, name="Roles"):
                 value=f"{len(unchanged_roles)} roles were already configured correctly.",
                 inline=False
             )
-            
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
         
     @syncroles_command.error
     async def syncroles_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
