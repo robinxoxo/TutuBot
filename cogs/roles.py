@@ -262,13 +262,59 @@ class RolesView(ui.View):
             self.add_item(RoleCategorySelect())
             
     async def back_button_callback(self, interaction: discord.Interaction):
-        """Returns to the main category selection."""
+        """Returns to the main category selection with updated role information."""
         assert isinstance(interaction.user, discord.Member), "User must be a Member"
         
-        # Simple embed without role information  
+        # Fetch the updated member to ensure we have the latest roles
+        updated_member = await interaction.guild.fetch_member(interaction.user.id)
+        
+        # Calculate total roles and categories
+        total_roles = len(ROLE_DEFINITIONS)
+        total_categories = len(RoleCategory)
+        
+        # Get user's current roles that match defined roles with emojis
+        user_role_names = [role.name.lower() for role in updated_member.roles]
+        user_defined_roles = []
+        for role_name in user_role_names:
+            for defined_role in ROLE_DEFINITIONS.values():
+                if defined_role["name"].lower() == role_name:
+                    user_defined_roles.append(f"{defined_role['emoji']} {defined_role['name'].lower().title()}")
+                    break
+        
+        # Create embed for main menu with updated information
         embed = EmbedBuilder.info(
             title="👤 Role Management",
-            description="Select a category of roles to manage from the dropdown below."
+            description=(
+                f"Welcome to role management! Here you can customize your server roles.\n"
+                f"• Total Roles Available: {total_roles}\n"
+                f"• Categories: {total_categories}\n"
+                f"\nSelect a category of roles to manage from the dropdown below."
+            )
+        )
+        
+        # Add a field for assigned roles with emojis
+        if user_defined_roles:
+            embed.add_field(
+                name="Your Assigned Roles",
+                value="\n".join(user_defined_roles),
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="Your Assigned Roles",
+                value="None",
+                inline=False
+            )
+        
+        # Add a field with instructions
+        embed.add_field(
+            name="How to Use",
+            value=(
+                "• Choose a category from the dropdown to view available roles.\n"
+                "• Select roles to add or deselect to remove them.\n"
+                "• Use the 'Back to Categories' button to switch categories."
+            ),
+            inline=False
         )
         
         # Create a view with category selection
@@ -305,10 +351,53 @@ class RoleCog(commands.Cog, name="Roles"):
             )
             return
             
-        # Create embed for main menu
+        # Calculate total roles and categories
+        total_roles = len(ROLE_DEFINITIONS)
+        total_categories = len(RoleCategory)
+        
+        # Get user's current roles that match defined roles with emojis
+        user_role_names = [role.name.lower() for role in interaction.user.roles]
+        user_defined_roles = []
+        for role_name in user_role_names:
+            for defined_role in ROLE_DEFINITIONS.values():
+                if defined_role["name"].lower() == role_name:
+                    user_defined_roles.append(f"{defined_role['emoji']} {defined_role['name'].lower().title()}")
+                    break
+        
+        # Create embed for main menu with more information
         embed = EmbedBuilder.info(
             title="👤 Role Management",
-            description="Select a category of roles to manage from the dropdown below."
+            description=(
+                f"Welcome to role management! Here you can customize your server roles.\n"
+                f"• Total Roles Available: {total_roles}\n"
+                f"• Categories: {total_categories}\n"
+                f"\nSelect a category of roles to manage from the dropdown below."
+            )
+        )
+        
+        # Add a field for assigned roles with emojis
+        if user_defined_roles:
+            embed.add_field(
+                name="Your Assigned Roles",
+                value="\n".join(user_defined_roles),
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="Your Assigned Roles",
+                value="None",
+                inline=False
+            )
+            
+        # Add a field with instructions
+        embed.add_field(
+            name="How to Use",
+            value=(
+                "• Choose a category from the dropdown to view available roles.\n"
+                "• Select roles to add or deselect to remove them.\n"
+                "• Use the 'Back to Categories' button to switch categories."
+            ),
+            inline=False
         )
             
         # Create view with role category selection

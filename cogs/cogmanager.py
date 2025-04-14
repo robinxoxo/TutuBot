@@ -73,37 +73,55 @@ class CogManager(commands.Cog):
         # Ensure only cogmanager and faq are treated as core
         self.actual_core_cogs = ['cogs.cogmanager']
 
-    @app_commands.command(name="sync", description="[Admin] Sync slash commands to the server.")
+    @app_commands.command(name="sync", description="[Admin] Sync slash commands to the server or globally.")
     @is_owner_or_administrator()
-    async def sync_commands(self, interaction: discord.Interaction):
-        """Sync slash commands to Discord."""
+    async def sync_commands(self, interaction: discord.Interaction, scope: str):
+        """Sync slash commands to Discord with a choice of guild or global sync.
+        
+        Args:
+            scope: The type of sync to perform (guild or global).
+        """
         await interaction.response.defer(ephemeral=True, thinking=True)
         
-        # Check if in guild
-        if not interaction.guild:
-            await send_ephemeral_message(interaction, content="This command must be used in a server for guild syncing.")
-            return
-            
-        try:
-            # First sync global commands
-            await self.bot.tree.sync()
-            
-            # Then sync guild-specific commands for this guild
-            self.bot.tree.copy_global_to(guild=interaction.guild)
-            await self.bot.tree.sync(guild=interaction.guild)
-            
-            embed = EmbedBuilder.success(
-                title="✓ Commands Synced",
-                description="Successfully synced slash commands to Discord."
+        # Validate sync_type input
+        scope = scope.lower()
+        if scope not in ["guild", "global"]:
+            embed = EmbedBuilder.error(
+                title="✗ Invalid Sync Type",
+                description="Invalid sync type. Please use 'guild' or 'global'."
             )
             await send_ephemeral_message(interaction, embed=embed)
+            return
+        
+        try:
+            if scope == "global":
+                # Sync global commands
+                synced_commands = await self.bot.tree.sync()
+                command_count = len(synced_commands)
+                embed = EmbedBuilder.success(
+                    title="✓ Global Commands Synced",
+                    description=f"Successfully synced {command_count} slash command(s) globally to all servers.\n• Note: Global sync may take up to an hour to fully update across all servers."
+                )
+            else:
+                # Check if in guild
+                if not interaction.guild:
+                    await send_ephemeral_message(interaction, content="Guild sync must be used in a server.")
+                    return
+                # Sync guild-specific commands
+                self.bot.tree.copy_global_to(guild=interaction.guild)
+                synced_commands = await self.bot.tree.sync(guild=interaction.guild)
+                command_count = len(synced_commands)
+                embed = EmbedBuilder.success(
+                    title="✓ Guild Commands Synced",
+                    description=f"Successfully synced {command_count} slash command(s) to this server."
+                )
         except Exception as e:
-            log.error(f"Error syncing commands: {e}")
+            log.error(f"Error syncing commands ({scope}): {e}")
             embed = EmbedBuilder.error(
                 title="✗ Sync Failed",
                 description=f"Failed to sync commands: {str(e)}"
             )
-            await send_ephemeral_message(interaction, embed=embed)
+        await send_ephemeral_message(interaction, embed=embed)
 
     @app_commands.command(name="load", description="[Admin] Loads a specified cog.")
     @is_owner_or_administrator()
