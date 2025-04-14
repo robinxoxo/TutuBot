@@ -7,32 +7,32 @@ import json
 import os
 
 from utils.embed_builder import EmbedBuilder
-from cogs.permissions import is_owner_or_administrator
+from cogs.permissions import is_owner_or_administrator, check_owner_or_admin
 
 log = logging.getLogger(__name__)
 
 class LoggingCog(commands.Cog, name="Logging"):
     DATA_FILE = os.path.join("data", "log_channels.json")
     LOGGABLE_EVENTS = [
-        ("member_join", "👋 Member Join"),
-        ("member_remove", "👋 Member Leave"),
-        ("member_ban", "✗ Member Ban"),
-        ("member_unban", "✓ Member Unban"),
-        ("member_update", "📝 Member Update"),
-        ("message_delete", "✗ Message Delete"),
-        ("message_edit", "✎ Message Edit"),
-        ("channel_create", "✓ Channel Create"),
-        ("channel_delete", "✗ Channel Delete"),
-        ("channel_update", "📝 Channel Update"),
-        ("role_create", "✓ Role Create"),
-        ("role_delete", "✗ Role Delete"),
-        ("role_update", "📝 Role Update"),
-        ("guild_update", "🛠️ Server Update"),
-        ("emoji_update", "😃 Emoji Update"),
-        ("webhook_update", "🔗 Webhook Update"),
-        ("integration_update", "🔗 Integration Update"),
-        ("invite_create", "✓ Invite Create"),
-        ("invite_delete", "✗ Invite Delete"),
+        ("member_join", "👋", "Member Join"),
+        ("member_remove", "👋", "Member Leave"),
+        ("member_ban", "🔨", "Member Ban"),
+        ("member_unban", "✅", "Member Unban"),
+        ("member_update", "📝", "Member Update"),
+        ("message_delete", "🗑️", "Message Delete"),
+        ("message_edit", "✏️", "Message Edit"),
+        ("channel_create", "✅", "Channel Create"),
+        ("channel_delete", "🗑️", "Channel Delete"),
+        ("channel_update", "📝", "Channel Update"),
+        ("role_create", "✅", "Role Create"),
+        ("role_delete", "🗑️", "Role Delete"),
+        ("role_update", "📝", "Role Update"),
+        ("guild_update", "🛠️", "Server Update"),
+        ("emoji_update", "😃", "Emoji Update"),
+        ("webhook_update", "🔗", "Webhook Update"),
+        ("integration_update", "🔗", "Integration Update"),
+        ("invite_create", "✅", "Invite Create"),
+        ("invite_delete", "🗑️", "Invite Delete"),
     ]
 
     def __init__(self, bot: commands.Bot):
@@ -73,7 +73,7 @@ class LoggingCog(commands.Cog, name="Logging"):
         settings["log_events"][event_key] = enabled
         self.save_log_channels()
 
-    @app_commands.command(name="logs", description="[Admin] Configure server logging.")
+    @app_commands.command(name="logging", description="[Admin] Configure server logging.")
     @is_owner_or_administrator()
     async def logs_menu(self, interaction: discord.Interaction):
         if not interaction.guild:
@@ -92,10 +92,10 @@ class LoggingCog(commands.Cog, name="Logging"):
             title="🛠️ Logging Settings",
             description=f"• Log Channel: {channel_mention}\n• Toggle which events are logged below."
         )
-        for key, label in self.LOGGABLE_EVENTS:
+        for key, emoji, label in self.LOGGABLE_EVENTS:
             enabled = settings["log_events"].get(key, True)
             status = "✓ Enabled" if enabled else "✗ Disabled"
-            embed.add_field(name=label, value=status, inline=True)
+            embed.add_field(name=f"{emoji} {label}", value=status, inline=True)
         view = LoggingEventsView(self, interaction.guild.id)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
@@ -570,13 +570,13 @@ class LoggingEventsView(ui.View):
         self.cog = cog
         self.guild_id = guild_id
         # Add event toggle buttons
-        for key, label in LoggingCog.LOGGABLE_EVENTS:
+        for key, emoji, label in LoggingCog.LOGGABLE_EVENTS:
             enabled = self.cog.is_event_enabled(guild_id, key)
             button = ui.Button(
                 label=label,
                 style=discord.ButtonStyle.secondary,
                 custom_id=f"toggle_{key}",
-                emoji=label.split()[0],
+                emoji=emoji,
             )
             button.callback = self.make_toggle_callback(key)
             self.add_item(button)
@@ -592,7 +592,7 @@ class LoggingEventsView(ui.View):
 
     def make_toggle_callback(self, event_key):
         async def callback(interaction: discord.Interaction):
-            if not await is_owner_or_administrator(interaction):
+            if not await check_owner_or_admin(interaction):
                 await interaction.response.send_message(
                     embed=EmbedBuilder.error(
                         title="✗ Access Denied",
@@ -608,7 +608,7 @@ class LoggingEventsView(ui.View):
         return callback
 
     async def set_log_channel_callback(self, interaction: discord.Interaction):
-        if not await is_owner_or_administrator(interaction):
+        if not await check_owner_or_admin(interaction):
             await interaction.response.send_message(
                 embed=EmbedBuilder.error(
                     title="✗ Access Denied",
@@ -631,10 +631,10 @@ class LoggingEventsView(ui.View):
             title="🛠️ Logging Settings",
             description=f"• Log Channel: {channel_mention}\n• Toggle which events are logged below."
         )
-        for key, label in LoggingCog.LOGGABLE_EVENTS:
+        for key, emoji, label in LoggingCog.LOGGABLE_EVENTS:
             enabled = settings["log_events"].get(key, True)
             status = "✓ Enabled" if enabled else "✗ Disabled"
-            embed.add_field(name=label, value=status, inline=True)
+            embed.add_field(name=f"{emoji} {label}", value=status, inline=True)
         await interaction.response.edit_message(embed=embed, view=LoggingEventsView(self.cog, self.guild_id))
 
 async def setup(bot: commands.Bot):
