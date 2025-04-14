@@ -42,9 +42,12 @@ async def send_ephemeral_message(
         # Prepare kwargs for the send method
         kwargs = {
             "content": content,
-            "view": view,
             "ephemeral": True
         }
+        
+        # Only add view if not None
+        if view is not None:
+            kwargs["view"] = view
         
         # Only add one of embed or embeds to avoid the error
         if embeds is not None:

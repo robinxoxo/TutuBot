@@ -111,16 +111,34 @@ class CogManager(commands.Cog):
         """Load a cog by name."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         
-        result = await self.bot.load_extension(cog_name)
-        if result["success"]:
+        # Add prefix if needed
+        if not cog_name.startswith("cogs."):
+            cog_name = f"cogs.{cog_name}"
+        
+        # Check if cog is already loaded
+        if cog_name in self.bot.extensions:
+            embed = EmbedBuilder.error(
+                title="✗ Already Loaded",
+                description=f"The cog `{cog_name}` is already loaded."
+            )
+            await send_ephemeral_message(interaction, embed=embed)
+            return
+        
+        # Try to load the cog
+        try:
+            await self.bot.load_extension(cog_name)
+            log.info(f"Successfully loaded cog: {cog_name}")
+            
             embed = EmbedBuilder.success(
                 title="✓ Cog Loaded",
                 description=f"Successfully loaded `{cog_name}`."
             )
-        else:
+        except Exception as e:
+            log.error(f"Error loading cog {cog_name}: {str(e)}")
+            
             embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"Failed to load `{cog_name}`: {result['error']}"
+                description=f"Failed to load `{cog_name}`: {str(e)}"
             )
         
         await send_ephemeral_message(interaction, embed=embed)
@@ -140,16 +158,33 @@ class CogManager(commands.Cog):
             await send_ephemeral_message(interaction, embed=embed)
             return
         
-        result = await self.bot.unload_extension(cog_name)
-        if result["success"]:
+        # Check if the cog exists and is loaded
+        if not cog_name.startswith("cogs."):
+            cog_name = f"cogs.{cog_name}"
+        
+        if cog_name not in self.bot.extensions:
+            embed = EmbedBuilder.error(
+                title="✗ Cog Not Loaded",
+                description=f"The cog `{cog_name}` is not currently loaded."
+            )
+            await send_ephemeral_message(interaction, embed=embed)
+            return
+        
+        # Try to unload the cog
+        try:
+            await self.bot.unload_extension(cog_name)
+            log.info(f"Successfully unloaded cog: {cog_name}")
+            
             embed = EmbedBuilder.success(
                 title="✓ Cog Unloaded",
                 description=f"Successfully unloaded `{cog_name}`."
             )
-        else:
+        except Exception as e:
+            log.error(f"Error unloading cog {cog_name}: {str(e)}")
+            
             embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"Failed to unload `{cog_name}`: {result['error']}"
+                description=f"Failed to unload `{cog_name}`: {str(e)}"
             )
         
         await send_ephemeral_message(interaction, embed=embed)
@@ -160,16 +195,34 @@ class CogManager(commands.Cog):
         """Reload a cog by name."""
         await interaction.response.defer(ephemeral=True, thinking=True)
         
-        result = await self.bot.reload_extension(cog_name)
-        if result["success"]:
+        # Add prefix if needed
+        if not cog_name.startswith("cogs."):
+            cog_name = f"cogs.{cog_name}"
+        
+        # Check if the cog is loaded
+        if cog_name not in self.bot.extensions:
+            embed = EmbedBuilder.error(
+                title="✗ Not Loaded",
+                description=f"The cog `{cog_name}` is not currently loaded and cannot be reloaded."
+            )
+            await send_ephemeral_message(interaction, embed=embed)
+            return
+        
+        # Try to reload the cog
+        try:
+            await self.bot.reload_extension(cog_name)
+            log.info(f"Successfully reloaded cog: {cog_name}")
+            
             embed = EmbedBuilder.success(
                 title="✓ Cog Reloaded",
                 description=f"Successfully reloaded `{cog_name}`."
             )
-        else:
+        except Exception as e:
+            log.error(f"Error reloading cog {cog_name}: {str(e)}")
+            
             embed = EmbedBuilder.error(
                 title="✗ Error",
-                description=f"Failed to reload `{cog_name}`: {result['error']}"
+                description=f"Failed to reload `{cog_name}`: {str(e)}"
             )
         
         await send_ephemeral_message(interaction, embed=embed)
@@ -177,48 +230,40 @@ class CogManager(commands.Cog):
     @app_commands.command(name="list", description="[Admin] Lists available and loaded cogs.")
     @is_owner_or_administrator()
     async def list_cogs(self, interaction: discord.Interaction):
-        """List all loaded cogs."""
-        cog_list = sorted(self.bot.cogs.keys())
+        """List all loaded and available cogs."""
+        await interaction.response.defer(ephemeral=True, thinking=True)
         
-        embed = EmbedBuilder.info(
-            title="📋 Loaded Cogs",
-            description=f"There are {len(cog_list)} cogs currently loaded."
-        )
-        
-        # Add cogs to embed
-        cogs_formatted = "\n".join(f"• {cog}" for cog in cog_list)
-        embed.add_field(name="Cogs", value=cogs_formatted, inline=False)
-        
-        await send_ephemeral_message(interaction, embed=embed)
-
-    @app_commands.command(name="cogs", description="[Admin] Manage bot cogs/extensions")
-    @is_owner_or_administrator()
-    async def manage_cogs(self, interaction: discord.Interaction):
-        """Manage cogs loaded in the bot."""
         embed = EmbedBuilder.info(
             title="⚙️ Cog Management",
-            description="Manage which cogs are loaded in the bot."
+            description="Overview of loaded and available cogs."
         )
         
-        # Add fields for loaded and unloaded cogs
-        loaded_cogs = "\n".join(f"• {cog}" for cog in sorted(self.bot.cogs.keys()))
-        embed.add_field(name="Loaded Cogs", value=loaded_cogs or "None", inline=False)
+        # Get loaded cogs
+        loaded_cog_names = sorted(self.bot.cogs.keys())
+        loaded_cogs_text = "\n".join(f"• {cog}" for cog in loaded_cog_names) or "None"
+        embed.add_field(name=f"✓ Loaded Cogs ({len(loaded_cog_names)})", value=loaded_cogs_text, inline=False)
         
-        # Get list of available cogs from the directory
-        available_cogs = self.get_available_cogs()
-        unloaded_cogs = "\n".join(
-            f"• {cog}" for cog in sorted(available_cogs) 
-            if cog not in self.bot.cogs.keys() and not cog.startswith("_")
-        )
-        embed.add_field(name="Unloaded Cogs", value=unloaded_cogs or "None", inline=False)
+        # Get all available cogs - use global function
+        available_cogs = get_available_cogs()
+        
+        # Get the list of loaded modules (fully qualified names)
+        loaded_modules = list(self.bot.extensions.keys())
+        
+        # Find unloaded cogs by checking which available modules aren't loaded
+        unloaded_cogs = [cog for cog in available_cogs if cog not in loaded_modules]
+        
+        # Add unloaded cogs field if any
+        if unloaded_cogs:
+            unloaded_cogs_text = "\n".join(f"• {cog}" for cog in sorted(unloaded_cogs))
+            embed.add_field(name=f"✗ Unloaded Cogs ({len(unloaded_cogs)})", value=unloaded_cogs_text, inline=False)
         
         # Add usage instructions
         embed.add_field(
             name="Commands",
             value=(
-                "• Use `/cogs load [name]` to load a cog\n"
-                "• Use `/cogs unload [name]` to unload a cog\n"
-                "• Use `/cogs reload [name]` to reload a cog"
+                "• Use `/load [name]` to load a cog\n"
+                "• Use `/unload [name]` to unload a cog\n"
+                "• Use `/reload [name]` to reload a cog"
             ),
             inline=False
         )
