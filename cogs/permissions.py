@@ -144,6 +144,11 @@ class PermissionsCog(commands.Cog, name="Permissions"):
             for cmd in bot.tree.get_commands():
                 if cmd.description and "[Admin]" in cmd.description:
                     commands.append((cmd.name, cmd.description or cmd.name))
+        # Ensure /support is included as an admin command
+        for cmd in bot.tree.get_commands():
+            if cmd.name == "support":
+                if not any(c[0] == "support" for c in commands):
+                    commands.append((cmd.name, cmd.description or cmd.name))
         return commands
 
     @app_commands.command(name="permissions", description="[Admin] Manage roles that can use admin commands.")

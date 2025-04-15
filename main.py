@@ -121,6 +121,8 @@ if "cogs.giveaways" not in initial_cogs:
     initial_cogs.append("cogs.giveaways")
 if "cogs.logging" not in initial_cogs:
     initial_cogs.append("cogs.logging")
+if "cogs.support" not in initial_cogs:
+    initial_cogs.append("cogs.support")
 
 # Create bot
 bot = TutuBot(

@@ -280,7 +280,7 @@ class GitHubCog(commands.Cog, name="GitHub"):
         """Manage GitHub integration settings."""
         # Create info embed
         embed = EmbedBuilder.info(
-            title="<:github:1361388522517950555> GitHub Integration",
+            title="🛠️ GitHub Integration",
             description="• Use this command to manage GitHub integration settings."
         )
         
