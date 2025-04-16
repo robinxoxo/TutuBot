@@ -34,7 +34,7 @@ class SupportCog(commands.Cog, name="Support"):
     async def cog_load(self):
         self.tickets = load_tickets()
 
-    @app_commands.command(name="support", description="[Admin] Get support or open a ticket.")
+    @app_commands.command(name="support", description="Get support or open a ticket.")
     async def support_menu(self, interaction: discord.Interaction):
         embed = EmbedBuilder.info(
             title="🎫 Support Menu",

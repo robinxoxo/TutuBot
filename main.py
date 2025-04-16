@@ -123,6 +123,8 @@ if "cogs.logging" not in initial_cogs:
     initial_cogs.append("cogs.logging")
 if "cogs.support" not in initial_cogs:
     initial_cogs.append("cogs.support")
+if "cogs.twitch" not in initial_cogs:
+    initial_cogs.append("cogs.twitch")
 
 # Create bot
 bot = TutuBot(

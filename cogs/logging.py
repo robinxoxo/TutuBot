@@ -14,25 +14,27 @@ log = logging.getLogger(__name__)
 class LoggingCog(commands.Cog, name="Logging"):
     DATA_FILE = os.path.join("data", "log_channels.json")
     LOGGABLE_EVENTS = [
-        ("member_join", "👋", "Member Join"),
-        ("member_remove", "👋", "Member Leave"),
+        # Start of Selection
+        ("member_join", "🙌", "Member Join"),
+        ("member_remove", "🚶", "Member Leave"),
         ("member_ban", "🔨", "Member Ban"),
-        ("member_unban", "✅", "Member Unban"),
-        ("member_update", "📝", "Member Update"),
-        ("message_delete", "🗑️", "Message Delete"),
-        ("message_edit", "✏️", "Message Edit"),
-        ("channel_create", "✅", "Channel Create"),
+        ("member_unban", "🔓", "Member Unban"),
+        ("member_update", "⚙️", "Member Update"),
+        ("message_delete", "✂️", "Message Delete"),
+        ("message_edit", "📝", "Message Edit"),
+        ("channel_create", "📂", "Channel Create"),
         ("channel_delete", "🗑️", "Channel Delete"),
-        ("channel_update", "📝", "Channel Update"),
-        ("role_create", "✅", "Role Create"),
-        ("role_delete", "🗑️", "Role Delete"),
-        ("role_update", "📝", "Role Update"),
-        ("guild_update", "🛠️", "Server Update"),
-        ("emoji_update", "😃", "Emoji Update"),
-        ("webhook_update", "🔗", "Webhook Update"),
-        ("integration_update", "🔗", "Integration Update"),
-        ("invite_create", "✅", "Invite Create"),
-        ("invite_delete", "🗑️", "Invite Delete"),
+        ("channel_update", "🔧", "Channel Update"),
+        ("role_create", "🌱", "Role Create"),
+        ("role_delete", "🔥", "Role Delete"),
+        ("role_update", "🔄", "Role Update"),
+        ("guild_update", "🏛️", "Server Update"),
+        ("emoji_update", "🎭", "Emoji Update"),
+        ("webhook_update", "📡", "Webhook Update"),
+        ("integration_update", "🔌", "Integration Update"),
+        ("invite_create", "✉️", "Invite Create"),
+        ("invite_delete", "🚫", "Invite Delete"),
+        # End of Selectio
     ]
 
     def __init__(self, bot: commands.Bot):
