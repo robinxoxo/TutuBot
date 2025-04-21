@@ -102,6 +102,24 @@ async def admin_check_with_response(interaction: discord.Interaction, command_na
     await interaction.response.send_message(embed=embed, ephemeral=True)
     return False
 
+# Add decorator for permission management: only bot owner or guild administrators
+def is_owner_or_guild_admin():
+    """A decorator that checks if the user is the bot owner or has administrator permissions."""
+    def decorator(func):
+        async def predicate(interaction: discord.Interaction) -> bool:
+            bot = cast('TutuBot', interaction.client)
+            # Check for bot owner
+            if hasattr(bot, 'owner_id') and interaction.user.id == bot.owner_id:
+                return True
+            # Check for administrator permission
+            if interaction.guild and isinstance(interaction.user, discord.Member):
+                if interaction.user.guild_permissions.administrator:
+                    return True
+            # Default deny
+            return False
+        return app_commands.check(predicate)(func)
+    return decorator
+
 class PermissionsCog(commands.Cog, name="Permissions"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -152,7 +170,7 @@ class PermissionsCog(commands.Cog, name="Permissions"):
         return commands
 
     @app_commands.command(name="permissions", description="[Admin] Manage roles that can use admin commands.")
-    @is_owner_or_administrator()
+    @is_owner_or_guild_admin()
     async def permissions_menu(self, interaction: discord.Interaction):
         if not interaction.guild:
             await interaction.response.send_message(
@@ -270,7 +288,11 @@ class PermissionsRoleSelect(ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        if not await check_owner_or_admin(interaction, self.selected_command):
+        # Only allow bot owner or guild administrators to modify permissions
+        bot = cast('TutuBot', interaction.client)
+        if not ((hasattr(bot, 'owner_id') and interaction.user.id == bot.owner_id)
+                or (interaction.guild and isinstance(interaction.user, discord.Member)
+                    and interaction.user.guild_permissions.administrator)):
             return
         # Only top 25 roles are shown, so only update those
         all_roles = [role for role in self.guild.roles if not role.is_default() and not role.managed]

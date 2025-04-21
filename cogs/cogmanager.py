@@ -62,55 +62,63 @@ def get_available_cogs(exclude_cogs: List[str] = None) -> Set[str]:
     return extension_paths
 
 class CogManager(commands.Cog):
-    """Provides slash commands to manage the bot's cogs."""
-
-    def __init__(self, bot: 'TutuBot'):
+    """
+    Provides slash commands to manage the bot's cogs (load, unload, reload, sync, list, info).
+    Includes robust error handling, type hints, DRY helpers, and improved user feedback.
+    """
+    def __init__(self, bot: 'TutuBot') -> None:
         self.bot = bot
         self.core_cogs = getattr(self.bot, 'initial_cogs', [])
-        # Ensure only cogmanager and faq are treated as core
         self.actual_core_cogs = ['cogs.cogmanager']
+
+    async def _send_embed(self, interaction: discord.Interaction, embed: discord.Embed) -> None:
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    def _normalize_cog_name(self, cog_name: str) -> str:
+        return cog_name if cog_name.startswith("cogs.") else f"cogs.{cog_name}"
+
+    def _is_core_cog(self, cog_name: str) -> bool:
+        return cog_name in self.actual_core_cogs
+
+    def _get_loaded_cogs(self) -> set[str]:
+        return set(self.bot.extensions.keys())
 
     @app_commands.command(name="sync", description="[Admin] Sync slash commands to the server or globally.")
     @is_owner_or_administrator()
-    async def sync_commands(self, interaction: discord.Interaction, scope: str):
-        """Sync slash commands to Discord with a choice of guild or global sync.
-        
+    async def sync_commands(self, interaction: discord.Interaction, scope: str) -> None:
+        """
+        Sync slash commands to Discord with a choice of guild or global sync.
         Args:
             scope: The type of sync to perform (guild or global).
         """
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        # Validate sync_type input
         scope = scope.lower()
         if scope not in ["guild", "global"]:
             embed = EmbedBuilder.error(
                 title="✗ Invalid Sync Type",
                 description="Invalid sync type. Please use 'guild' or 'global'."
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await self._send_embed(interaction, embed)
             return
-        
         try:
             if scope == "global":
-                # Sync global commands
                 synced_commands = await self.bot.tree.sync()
-                command_count = len(synced_commands)
                 embed = EmbedBuilder.success(
                     title="✓ Global Commands Synced",
-                    description=f"Successfully synced {command_count} slash command(s) globally to all servers.\n• Note: Global sync may take up to an hour to fully update across all servers."
+                    description=f"Successfully synced {len(synced_commands)} slash command(s) globally.\nNote: Global sync may take up to an hour to propagate."
                 )
             else:
-                # Check if in guild
                 if not interaction.guild:
-                    await interaction.followup.send(content="Guild sync must be used in a server.", ephemeral=True)
+                    await self._send_embed(interaction, EmbedBuilder.error(
+                        title="✗ Guild Sync Error",
+                        description="Guild sync must be used in a server."
+                    ))
                     return
-                # Sync guild-specific commands
                 self.bot.tree.copy_global_to(guild=interaction.guild)
                 synced_commands = await self.bot.tree.sync(guild=interaction.guild)
-                command_count = len(synced_commands)
                 embed = EmbedBuilder.success(
                     title="✓ Guild Commands Synced",
-                    description=f"Successfully synced {command_count} slash command(s) to this server."
+                    description=f"Successfully synced {len(synced_commands)} slash command(s) to this server."
                 )
         except Exception as e:
             log.error(f"Error syncing commands ({scope}): {e}")
@@ -118,158 +126,149 @@ class CogManager(commands.Cog):
                 title="✗ Sync Failed",
                 description=f"Failed to sync commands: {str(e)}"
             )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await self._send_embed(interaction, embed)
+
+    @sync_commands.autocomplete("scope")
+    async def sync_commands_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
+        choices = ["global", "guild"]
+        return [app_commands.Choice(name=choice, value=choice) for choice in choices if current.lower() in choice.lower()]
 
     @app_commands.command(name="load", description="[Admin] Loads a specified cog.")
     @is_owner_or_administrator()
-    async def load_cog(self, interaction: discord.Interaction, cog_name: str):
-        """Load a cog by name."""
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        # Add prefix if needed
-        if not cog_name.startswith("cogs."):
-            cog_name = f"cogs.{cog_name}"
-        
-        # Check if cog is already loaded
+    async def load_cog(self, interaction: discord.Interaction, cog_name: str) -> None:
+        """
+        Load a cog by name.
+        """
+        cog_name = self._normalize_cog_name(cog_name)
         if cog_name in self.bot.extensions:
             embed = EmbedBuilder.error(
                 title="✗ Already Loaded",
                 description=f"The cog `{cog_name}` is already loaded."
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await self._send_embed(interaction, embed)
             return
-        
-        # Try to load the cog
         try:
             await self.bot.load_extension(cog_name)
             log.info(f"Successfully loaded cog: {cog_name}")
-            
             embed = EmbedBuilder.success(
                 title="✓ Cog Loaded",
                 description=f"Successfully loaded `{cog_name}`."
             )
         except Exception as e:
-            log.error(f"Error loading cog {cog_name}: {str(e)}")
-            
+            log.error(f"Error loading cog {cog_name}: {e}")
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"Failed to load `{cog_name}`: {str(e)}"
             )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await self._send_embed(interaction, embed)
+
+    @load_cog.autocomplete("cog_name")
+    async def load_cog_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
+        all_cogs = get_available_cogs()
+        loaded = self._get_loaded_cogs()
+        options = [cog for cog in all_cogs if current.lower() in cog.lower() and cog not in loaded]
+        return [app_commands.Choice(name=cog.split(".")[-1], value=cog.split(".")[-1]) for cog in sorted(options)]
 
     @app_commands.command(name="unload", description="[Admin] Unloads a specified cog.")
     @is_owner_or_administrator()
-    async def unload_cog(self, interaction: discord.Interaction, cog_name: str):
-        """Unload a cog by name."""
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        # Don't allow unloading this cog
-        if cog_name.lower() in ["cogmanager", "cogs.cogmanager"]:
+    async def unload_cog(self, interaction: discord.Interaction, cog_name: str) -> None:
+        """
+        Unload a cog by name.
+        """
+        cog_name = self._normalize_cog_name(cog_name)
+        if self._is_core_cog(cog_name):
             embed = EmbedBuilder.error(
-                title="✗ Cannot Unload",
-                description="You cannot unload the CogManager cog."
+                title="✗ Core Cog",
+                description=f"`{cog_name}` is a core cog and cannot be unloaded."
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await self._send_embed(interaction, embed)
             return
-        
-        # Check if the cog exists and is loaded
-        if not cog_name.startswith("cogs."):
-            cog_name = f"cogs.{cog_name}"
-        
         if cog_name not in self.bot.extensions:
             embed = EmbedBuilder.error(
-                title="✗ Cog Not Loaded",
-                description=f"The cog `{cog_name}` is not currently loaded."
+                title="✗ Not Loaded",
+                description=f"The cog `{cog_name}` is not loaded."
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await self._send_embed(interaction, embed)
             return
-        
-        # Try to unload the cog
         try:
             await self.bot.unload_extension(cog_name)
             log.info(f"Successfully unloaded cog: {cog_name}")
-            
             embed = EmbedBuilder.success(
                 title="✓ Cog Unloaded",
                 description=f"Successfully unloaded `{cog_name}`."
             )
         except Exception as e:
-            log.error(f"Error unloading cog {cog_name}: {str(e)}")
-            
+            log.error(f"Error unloading cog {cog_name}: {e}")
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"Failed to unload `{cog_name}`: {str(e)}"
             )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await self._send_embed(interaction, embed)
+
+    @unload_cog.autocomplete("cog_name")
+    async def unload_cog_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
+        loaded = self._get_loaded_cogs()
+        options = [cog for cog in loaded if current.lower() in cog.lower() and not self._is_core_cog(cog)]
+        return [app_commands.Choice(name=cog.split(".")[-1], value=cog.split(".")[-1]) for cog in sorted(options)]
 
     @app_commands.command(name="reload", description="[Admin] Reloads a specified cog.")
     @is_owner_or_administrator()
-    async def reload_cog(self, interaction: discord.Interaction, cog_name: str):
-        """Reload a cog by name."""
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
-        # Add prefix if needed
-        if not cog_name.startswith("cogs."):
-            cog_name = f"cogs.{cog_name}"
-        
-        # Check if the cog is loaded
+    async def reload_cog(self, interaction: discord.Interaction, cog_name: str) -> None:
+        """
+        Reload a cog by name.
+        """
+        cog_name = self._normalize_cog_name(cog_name)
         if cog_name not in self.bot.extensions:
             embed = EmbedBuilder.error(
                 title="✗ Not Loaded",
-                description=f"The cog `{cog_name}` is not currently loaded and cannot be reloaded."
+                description=f"The cog `{cog_name}` is not loaded."
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await self._send_embed(interaction, embed)
             return
-        
-        # Try to reload the cog
         try:
             await self.bot.reload_extension(cog_name)
             log.info(f"Successfully reloaded cog: {cog_name}")
-            
             embed = EmbedBuilder.success(
                 title="✓ Cog Reloaded",
                 description=f"Successfully reloaded `{cog_name}`."
             )
         except Exception as e:
-            log.error(f"Error reloading cog {cog_name}: {str(e)}")
-            
+            log.error(f"Error reloading cog {cog_name}: {e}")
             embed = EmbedBuilder.error(
                 title="✗ Error",
                 description=f"Failed to reload `{cog_name}`: {str(e)}"
             )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await self._send_embed(interaction, embed)
 
-    @app_commands.command(name="list", description="[Admin] Lists available and loaded cogs.")
+    @reload_cog.autocomplete("cog_name")
+    async def reload_cog_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
+        loaded = self._get_loaded_cogs()
+        options = [cog for cog in loaded if current.lower() in cog.lower()]
+        return [app_commands.Choice(name=cog.split(".")[-1], value=cog.split(".")[-1]) for cog in sorted(options)]
+
+    @app_commands.command(name="list", description="[Admin] List all loaded and available cogs.")
     @is_owner_or_administrator()
-    async def list_cogs(self, interaction: discord.Interaction):
-        """List all loaded and available cogs."""
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
+    async def list_cogs(self, interaction: discord.Interaction) -> None:
+        """
+        List all loaded and available cogs.
+        """
+        loaded = self._get_loaded_cogs()
+        available = get_available_cogs()
+        unloaded = available - loaded
         embed = EmbedBuilder.info(
-            title="⚙️ Cog Management",
-            description="Overview of loaded and available cogs."
+            title="📦 Cogs List",
+            description="Current status of all cogs."
         )
-        
-        # Get loaded cogs (use fully qualified module names for consistency)
-        loaded_modules = sorted(self.bot.extensions.keys())
-        loaded_cogs_text = "\n".join(f"• {cog}" for cog in loaded_modules) or "None"
-        embed.add_field(name=f"✓ Loaded Cogs ({len(loaded_modules)})", value=loaded_cogs_text, inline=False)
-        
-        # Get all available cogs - use global function
-        available_cogs = get_available_cogs()
-        
-        # Find unloaded cogs by checking which available modules aren't loaded
-        unloaded_cogs = [cog for cog in available_cogs if cog not in loaded_modules]
-        
-        # Add unloaded cogs field if any
-        if unloaded_cogs:
-            unloaded_cogs_text = "\n".join(f"• {cog}" for cog in sorted(unloaded_cogs))
-            embed.add_field(name=f"✗ Unloaded Cogs ({len(unloaded_cogs)})", value=unloaded_cogs_text, inline=False)
-        
-        # Add usage instructions
+        embed.add_field(
+            name=f"✓ Loaded Cogs ({len(loaded)})",
+            value="\n".join(f"• {cog}" for cog in sorted(loaded)) or "None",
+            inline=False
+        )
+        embed.add_field(
+            name=f"✗ Unloaded Cogs ({len(unloaded)})",
+            value="\n".join(f"• {cog}" for cog in sorted(unloaded)) or "None",
+            inline=False
+        )
         embed.add_field(
             name="Commands",
             value=(
@@ -279,12 +278,68 @@ class CogManager(commands.Cog):
             ),
             inline=False
         )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await self._send_embed(interaction, embed)
 
+    @app_commands.command(name="info", description="[Admin] Get information about a cog.")
+    @is_owner_or_administrator()
+    async def info_cog(self, interaction: discord.Interaction, cog_name: str) -> None:
+        """
+        Get detailed information about a cog.
+        """
+        import importlib.util, inspect
+        cog_name_full = self._normalize_cog_name(cog_name)
+        try:
+            spec = importlib.util.find_spec(cog_name_full)
+            if spec is None:
+                available_raw = sorted(get_available_cogs())
+                available_names = ", ".join(cog.split('.')[-1] for cog in available_raw) if available_raw else "None"
+                embed = EmbedBuilder.error(
+                    title="✗ Cog Not Found",
+                    description=f"The cog `{cog_name}` does not exist.\nAvailable cogs: {available_names}"
+                )
+                await self._send_embed(interaction, embed)
+                return
+            module = importlib.import_module(cog_name_full)
+            cog_class = None
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                if issubclass(obj, commands.Cog) and obj.__module__ == module.__name__:
+                    cog_class = obj
+                    break
+            description = inspect.getdoc(cog_class) if cog_class else "No description available."
+            cog_instance = self.bot.get_cog(cog_class.__name__) if cog_class else None
+            if cog_instance:
+                if hasattr(cog_instance, "__cog_app_commands__"):
+                    cmds = [cmd.name for cmd in getattr(cog_instance, "__cog_app_commands__") if hasattr(cmd, "name")]
+                else:
+                    cmds = [cmd.name for cmd in self.bot.tree.get_commands() if getattr(cmd, 'cog', None) == cog_instance]
+                cmds_display = ", ".join(sorted(cmds)) if cmds else "None"
+            else:
+                cmds_display = "Not loaded."
+            embed = EmbedBuilder.info(
+                title=f"📑 Cog Info: {cog_name}",
+                description=(
+                    f"• **Module:** `{spec.origin}`\n"
+                    f"• **Description:** {description}\n"
+                    f"• **Commands:** {cmds_display}"
+                )
+            )
+        except Exception as e:
+            embed = EmbedBuilder.error(
+                title="✗ Error",
+                description=f"Failed to get cog info for `{cog_name}`: {str(e)}"
+            )
+        await self._send_embed(interaction, embed)
+
+    @info_cog.autocomplete("cog_name")
+    async def info_cog_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
+        available = sorted(get_available_cogs())
+        options = [cog for cog in available if current.lower() in cog.lower()]
+        return [app_commands.Choice(name=cog.split('.')[-1], value=cog.split('.')[-1]) for cog in options]
 
 # Simplified setup function
-async def setup(bot: 'TutuBot'):
-    """Sets up the CogManager cog."""
+async def setup(bot: 'TutuBot') -> None:
+    """
+    Sets up the CogManager cog.
+    """
     await bot.add_cog(CogManager(bot))
-    log.info("CogManager loaded.") 
+    log.info("CogManager loaded.")

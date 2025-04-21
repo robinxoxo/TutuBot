@@ -5,6 +5,7 @@ import logging
 import typing
 from typing import TYPE_CHECKING
 from utils.embed_builder import EmbedBuilder
+from cogs.permissions import user_has_admin_role
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -34,7 +35,7 @@ class FaqCog(commands.Cog, name="FAQ"):
         """
         embed = EmbedBuilder.info(
             title="📚 Command Help",
-            description="Here are the available commands:"
+            description="Below is a comprehensive list of available commands sorted by permission levels.\n• Regular commands are available to every user.\n• Admin commands are visible if you have the necessary permissions."
         )
 
         # Get all commands from the bot's command tree
@@ -67,13 +68,8 @@ class FaqCog(commands.Cog, name="FAQ"):
             
             # Add regular commands
             if regular_commands:
-                embed.add_field(name="👥 Regular Commands", value="Commands available to all users:", inline=False)
-                for command, description in regular_commands:
-                    embed.add_field(
-                        name=f"`/{command.name}`",
-                        value=description,
-                        inline=False
-                    )
+                reg_cmd_text = "\n".join([f"• `/{command.name}`: {description}" for command, description in regular_commands])
+                embed.add_field(name="👥 Regular Commands", value=reg_cmd_text, inline=False)
             
             # Add admin commands only if user has admin permissions or is bot owner
             is_admin = False
@@ -85,21 +81,14 @@ class FaqCog(commands.Cog, name="FAQ"):
                 is_admin = True  # Owner is treated as admin
             # Check admin permissions
             elif interaction.guild and isinstance(interaction.user, discord.Member):
-                is_admin = interaction.user.guild_permissions.administrator
+                is_admin = interaction.user.guild_permissions.administrator or user_has_admin_role(interaction.user)
                 
             if admin_commands and (is_admin or is_owner):
-                # Special title for bot owner if that's why they can see these commands
                 title = "🛡️ Admin Commands"
                 if is_owner and not is_admin:
                     title = "🛡️ Admin Commands (visible as bot owner)"
-                    
-                embed.add_field(name=title, value="Commands restricted to administrators:", inline=False)
-                for command, description in admin_commands:
-                    embed.add_field(
-                        name=f"`/{command.name}`",
-                        value=description,
-                        inline=False
-                    )
+                adm_cmd_text = "\n".join([f"• `/{command.name}`: {description}" for command, description in admin_commands])
+                embed.add_field(name=title, value=adm_cmd_text, inline=False)
 
         embed.set_footer(text="Use the slash (/) to invoke commands")
 
