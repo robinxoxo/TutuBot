@@ -204,6 +204,8 @@ class TwitchCog(commands.Cog):
         else:
             channel_mention = "*(not set)*"
         embed.add_field(name="Notification Channel", value=channel_mention, inline=False)
+        template = self.get_notification_template(guild_id)
+        embed.add_field(name="Notification Template", value=f"```{template or '(disabled)'}```", inline=False)
         view = TwitchMenuView(self, guild_id)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 

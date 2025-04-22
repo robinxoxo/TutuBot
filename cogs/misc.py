@@ -56,7 +56,7 @@ class ColorSelector(ui.View):
                     guild_id=guild_id
                 )
                 
-                await interaction.response.send_message(embed=success_embed, ephemeral=True)
+                await yes_interaction.followup.send(embed=success_embed, ephemeral=True)
                 
             except Exception as e:
                 log.exception(f"Error resetting colors: {e}")
@@ -65,7 +65,7 @@ class ColorSelector(ui.View):
                     description=f"An error occurred while resetting colors: {str(e)}",
                     guild_id=str(yes_interaction.guild_id) if yes_interaction.guild else None
                 )
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)
+                await yes_interaction.followup.send(embed=error_embed, ephemeral=True)
         
         async def no_callback(no_interaction: discord.Interaction):
             guild_id = str(no_interaction.guild_id) if no_interaction.guild else None
@@ -263,6 +263,62 @@ class MiscCog(commands.Cog, name="Misc"):
         # Create view with buttons
         view = ColorSelector(self, guild_id)
         
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        
+    @app_commands.command(name="purge", description="[Admin] Purge a number of messages from a channel")
+    @is_owner_or_administrator()
+    async def purge(self, interaction: discord.Interaction, amount: int):
+        """Purge a number of messages from the channel."""
+        # Validate amount
+        if amount < 1 or amount > 100:
+            error_embed = EmbedBuilder.error(
+                title="✗ Invalid amount",
+                description="Amount must be between 1 and 100.",
+                guild_id=str(interaction.guild_id) if interaction.guild else None
+            )
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in text channels.", ephemeral=True
+            )
+            return
+        
+        guild_id = str(interaction.guild_id) if interaction.guild else None
+        # Confirmation prompt
+        embed = EmbedBuilder.warning(
+            title="⚠️ Confirm Purge",
+            description=f"Are you sure you want to delete {amount} messages in {channel.mention}?",
+            guild_id=guild_id
+        )
+        view = ui.View(timeout=60)
+
+        async def yes_callback(yes_interaction: discord.Interaction):
+            deleted = await yes_interaction.channel.purge(limit=amount)
+            success_embed = EmbedBuilder.success(
+                title="🗑️ Messages Purged",
+                description=f"Deleted {len(deleted)} messages.",
+                guild_id=guild_id
+            )
+            await yes_interaction.response.edit_message(embed=success_embed, view=None)
+
+        async def no_callback(no_interaction: discord.Interaction):
+            cancel_embed = EmbedBuilder.info(
+                title="✗ Action Cancelled",
+                description="Purge cancelled.",
+                guild_id=guild_id
+            )
+            await no_interaction.response.edit_message(embed=cancel_embed, view=None)
+
+        yes_button = ui.Button(label="Yes", style=discord.ButtonStyle.danger)
+        yes_button.callback = yes_callback
+        view.add_item(yes_button)
+
+        no_button = ui.Button(label="No", style=discord.ButtonStyle.secondary)
+        no_button.callback = no_callback
+        view.add_item(no_button)
+
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         
     @manage_colors.error

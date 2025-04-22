@@ -34,7 +34,8 @@ class LoggingCog(commands.Cog, name="Logging"):
         ("integration_update", "🔌", "Integration Update"),
         ("invite_create", "✉️", "Invite Create"),
         ("invite_delete", "🚫", "Invite Delete"),
-        # End of Selectio
+        ("command", "💡", "Command Used"),
+        # End of Selection
     ]
 
     def __init__(self, bot: commands.Bot):
@@ -112,9 +113,10 @@ class LoggingCog(commands.Cog, name="Logging"):
         if not channel:
             return
         embed = EmbedBuilder.info(
-            title="👋 Member Joined",
+            title="🙌 Member Joined",
             description=f"{member.mention} has joined the server."
         )
+        embed.set_thumbnail(url=member.display_avatar.url)
         await channel.send(embed=embed)
 
     @commands.Cog.listener()
@@ -128,9 +130,10 @@ class LoggingCog(commands.Cog, name="Logging"):
         if not channel:
             return
         embed = EmbedBuilder.info(
-            title="👋 Member Left",
+            title="🚶 Member Left",
             description=f"{member.mention} has left the server."
         )
+        embed.set_thumbnail(url=member.display_avatar.url)
         await channel.send(embed=embed)
 
     @commands.Cog.listener()
@@ -151,9 +154,10 @@ class LoggingCog(commands.Cog, name="Logging"):
         else:
             moderator = None
         embed = EmbedBuilder.error(
-            title="✗ Member Banned",
+            title="🔨 Member Banned",
             description=f"{user.mention} was banned from the server."
         )
+        embed.set_thumbnail(url=moderator.display_avatar.url if moderator else user.display_avatar.url)
         if moderator:
             embed.add_field(name="Moderator", value=moderator.mention, inline=True)
         await channel.send(embed=embed)
@@ -176,9 +180,10 @@ class LoggingCog(commands.Cog, name="Logging"):
         else:
             moderator = None
         embed = EmbedBuilder.success(
-            title="✓ Member Unbanned",
+            title="🔓 Member Unbanned",
             description=f"{user.mention} was unbanned from the server."
         )
+        embed.set_thumbnail(url=moderator.display_avatar.url if moderator else user.display_avatar.url)
         if moderator:
             embed.add_field(name="Moderator", value=moderator.mention, inline=True)
         await channel.send(embed=embed)
@@ -195,24 +200,24 @@ class LoggingCog(commands.Cog, name="Logging"):
             return
         changes = []
         if before.nick != after.nick:
-            changes.append(f"• Nickname: `{before.nick}` → `{after.nick}`")
+            changes.append(f" Nickname: `{before.nick}` `{after.nick}`")
         if before.roles != after.roles:
             before_roles = set(before.roles)
             after_roles = set(after.roles)
             added = after_roles - before_roles
             removed = before_roles - after_roles
             if added:
-                changes.append(f"• Roles Added: {' '.join(role.mention for role in added)}")
+                changes.append(f" Roles Added: {' '.join(role.mention for role in added)}")
             if removed:
-                changes.append(f"• Roles Removed: {' '.join(role.mention for role in removed)}")
+                changes.append(f" Roles Removed: {' '.join(role.mention for role in removed)}")
         if before.avatar != after.avatar:
-            changes.append(f"• Avatar changed.")
+            changes.append(f" Avatar changed.")
         if before.name != after.name:
-            changes.append(f"• Username: `{before.name}` → `{after.name}`")
+            changes.append(f" Username: `{before.name}` `{after.name}`")
         if not changes:
             return
         embed = EmbedBuilder.info(
-            title="📝 Member Updated",
+            title="⚙️ Member Updated",
             description=f"{after.mention} was updated.\n" + '\n'.join(changes)
         )
         await channel.send(embed=embed)
@@ -236,14 +241,15 @@ class LoggingCog(commands.Cog, name="Logging"):
                 deleter = entry.user
                 break
         embed = EmbedBuilder.error(
-            title="✗ Message Deleted",
+            title="✂️ Message Deleted",
             description=f"A message by {message.author.mention} was deleted in {message.channel.mention}."
         )
+        embed.set_thumbnail(url=deleter.display_avatar.url if deleter else message.author.display_avatar.url)
         if deleter:
             embed.add_field(name="Deleted by", value=deleter.mention, inline=True)
         embed.add_field(name="Content", value=message.content or "*(no content)*", inline=False)
         if message.attachments:
-            files = '\n'.join(f"• [Attachment]({a.url})" for a in message.attachments)
+            files = '\n'.join(f" [Attachment]({a.url})" for a in message.attachments)
             embed.add_field(name="Attachments", value=files, inline=False)
         await log_channel.send(embed=embed)
 
@@ -262,9 +268,10 @@ class LoggingCog(commands.Cog, name="Logging"):
         if not log_channel:
             return
         embed = EmbedBuilder.warning(
-            title="✎ Message Edited",
+            title="📝 Message Edited",
             description=f"A message by {before.author.mention} was edited in {before.channel.mention}."
         )
+        embed.set_thumbnail(url=before.author.display_avatar.url)
         embed.add_field(name="Before", value=before.content or "*(no content)*", inline=False)
         embed.add_field(name="After", value=after.content or "*(no content)*", inline=False)
         await log_channel.send(embed=embed)
@@ -286,7 +293,7 @@ class LoggingCog(commands.Cog, name="Logging"):
                 creator = entry.user
                 break
         embed = EmbedBuilder.success(
-            title="✓ Channel Created",
+            title="📂 Channel Created",
             description=f"{channel.mention} was created."
         )
         if creator:
@@ -311,7 +318,7 @@ class LoggingCog(commands.Cog, name="Logging"):
                 deleter = entry.user
                 break
         embed = EmbedBuilder.error(
-            title="✗ Channel Deleted",
+            title="🗑️ Channel Deleted",
             description=f"A channel named `{channel.name}` was deleted."
         )
         if deleter:
@@ -331,17 +338,17 @@ class LoggingCog(commands.Cog, name="Logging"):
             return
         changes = []
         if before.name != after.name:
-            changes.append(f"• Name: `{before.name}` → `{after.name}`")
+            changes.append(f" Name: `{before.name}` `{after.name}`")
         if hasattr(before, 'topic') and hasattr(after, 'topic') and before.topic != after.topic:
-            changes.append(f"• Topic: `{before.topic}` → `{after.topic}`")
+            changes.append(f" Topic: `{before.topic}` `{after.topic}`")
         if before.category_id != after.category_id:
             before_cat = before.guild.get_channel(before.category_id).name if before.category_id else "None"
             after_cat = after.guild.get_channel(after.category_id).name if after.category_id else "None"
-            changes.append(f"• Category: `{before_cat}` → `{after_cat}`")
+            changes.append(f" Category: `{before_cat}` `{after_cat}`")
         if before.position != after.position:
-            changes.append(f"• Position: `{before.position}` → `{after.position}`")
+            changes.append(f" Position: `{before.position}` `{after.position}`")
         if hasattr(before, 'slowmode_delay') and hasattr(after, 'slowmode_delay') and before.slowmode_delay != after.slowmode_delay:
-            changes.append(f"• Slowmode: `{before.slowmode_delay}`s → `{after.slowmode_delay}`s")
+            changes.append(f" Slowmode: `{before.slowmode_delay}`s `{after.slowmode_delay}`s")
         if not changes:
             return
         # Try to get who updated the channel from audit logs
@@ -351,7 +358,7 @@ class LoggingCog(commands.Cog, name="Logging"):
                 updater = entry.user
                 break
         embed = EmbedBuilder.info(
-            title="📝 Channel Updated",
+            title="🔧 Channel Updated",
             description=f"{after.mention} was updated.\n" + '\n'.join(changes)
         )
         if updater:
@@ -374,7 +381,7 @@ class LoggingCog(commands.Cog, name="Logging"):
                 creator = entry.user
                 break
         embed = EmbedBuilder.success(
-            title="✓ Role Created",
+            title="🌱 Role Created",
             description=f"{role.mention} was created."
         )
         if creator:
@@ -397,7 +404,7 @@ class LoggingCog(commands.Cog, name="Logging"):
                 deleter = entry.user
                 break
         embed = EmbedBuilder.error(
-            title="✗ Role Deleted",
+            title="🔥 Role Deleted",
             description=f"A role named `{role.name}` was deleted."
         )
         if deleter:
@@ -416,15 +423,15 @@ class LoggingCog(commands.Cog, name="Logging"):
             return
         changes = []
         if before.name != after.name:
-            changes.append(f"• Name: `{before.name}` → `{after.name}`")
+            changes.append(f" Name: `{before.name}` `{after.name}`")
         if before.color != after.color:
-            changes.append(f"• Color: `{before.color}` → `{after.color}`")
+            changes.append(f" Color: `{before.color}` `{after.color}`")
         if before.permissions != after.permissions:
-            changes.append(f"• Permissions changed.")
+            changes.append(f" Permissions changed.")
         if before.mentionable != after.mentionable:
-            changes.append(f"• Mentionable: `{before.mentionable}` → `{after.mentionable}`")
+            changes.append(f" Mentionable: `{before.mentionable}` `{after.mentionable}`")
         if before.hoist != after.hoist:
-            changes.append(f"• Hoist: `{before.hoist}` → `{after.hoist}`")
+            changes.append(f" Hoist: `{before.hoist}` `{after.hoist}`")
         if not changes:
             return
         updater = None
@@ -433,7 +440,7 @@ class LoggingCog(commands.Cog, name="Logging"):
                 updater = entry.user
                 break
         embed = EmbedBuilder.info(
-            title="📝 Role Updated",
+            title="🔄 Role Updated",
             description=f"{after.mention} was updated.\n" + '\n'.join(changes)
         )
         if updater:
@@ -452,17 +459,17 @@ class LoggingCog(commands.Cog, name="Logging"):
             return
         changes = []
         if before.name != after.name:
-            changes.append(f"• Name: `{before.name}` → `{after.name}`")
+            changes.append(f" Name: `{before.name}` `{after.name}`")
         if before.icon != after.icon:
-            changes.append(f"• Icon changed.")
+            changes.append(f" Icon changed.")
         if before.owner_id != after.owner_id:
-            changes.append(f"• Owner: <@{before.owner_id}> → <@{after.owner_id}>")
+            changes.append(f" Owner: <@{before.owner_id}> <@{after.owner_id}>")
         if before.region != after.region:
-            changes.append(f"• Region: `{before.region}` → `{after.region}`")
+            changes.append(f" Region: `{before.region}` `{after.region}`")
         if not changes:
             return
         embed = EmbedBuilder.info(
-            title="🛠️ Server Updated",
+            title="🏛️ Server Updated",
             description=f"Server was updated.\n" + '\n'.join(changes)
         )
         await log_channel.send(embed=embed)
@@ -481,13 +488,13 @@ class LoggingCog(commands.Cog, name="Logging"):
         removed = [e for e in before if e not in after]
         changes = []
         if added:
-            changes.append(f"• Emojis Added: {' '.join(str(e) for e in added)}")
+            changes.append(f" Emojis Added: {' '.join(str(e) for e in added)}")
         if removed:
-            changes.append(f"• Emojis Removed: {' '.join(str(e) for e in removed)}")
+            changes.append(f" Emojis Removed: {' '.join(str(e) for e in removed)}")
         if not changes:
             return
         embed = EmbedBuilder.info(
-            title="😃 Emojis Updated",
+            title="🎭 Emojis Updated",
             description='\n'.join(changes)
         )
         await log_channel.send(embed=embed)
@@ -503,7 +510,7 @@ class LoggingCog(commands.Cog, name="Logging"):
         if not log_channel:
             return
         embed = EmbedBuilder.info(
-            title="🔗 Webhooks Updated",
+            title="📡 Webhooks Updated",
             description=f"Webhooks were updated in {channel.mention}."
         )
         await log_channel.send(embed=embed)
@@ -519,7 +526,7 @@ class LoggingCog(commands.Cog, name="Logging"):
         if not log_channel:
             return
         embed = EmbedBuilder.info(
-            title="🔗 Integrations Updated",
+            title="🔌 Integrations Updated",
             description="Server integrations were updated."
         )
         await log_channel.send(embed=embed)
@@ -541,9 +548,10 @@ class LoggingCog(commands.Cog, name="Logging"):
             return
         creator = invite.inviter
         embed = EmbedBuilder.success(
-            title="✓ Invite Created",
+            title="✉️ Invite Created",
             description=f"An invite was created for {invite.channel.mention}."
         )
+        embed.set_thumbnail(url=creator.display_avatar.url if creator else invite.inviter.display_avatar.url)
         if creator:
             embed.add_field(name="Created by", value=creator.mention, inline=True)
         embed.add_field(name="Code", value=invite.code, inline=True)
@@ -560,28 +568,127 @@ class LoggingCog(commands.Cog, name="Logging"):
         if not log_channel:
             return
         embed = EmbedBuilder.error(
-            title="✗ Invite Deleted",
+            title="🚫 Invite Deleted",
             description=f"An invite for {invite.channel.mention} was deleted."
         )
         embed.add_field(name="Code", value=invite.code, inline=True)
         await log_channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        """Log slash command usage."""
+        if interaction.type != discord.InteractionType.application_command:
+            return
+        if not interaction.guild_id:
+            return
+        guild_id = interaction.guild_id
+        if not self.is_event_enabled(guild_id, "command"):
+            return
+        channel_id = self.get_guild_settings(guild_id)["channel_id"]
+        if not channel_id:
+            return
+        channel = interaction.guild.get_channel(channel_id)
+        if not channel:
+            return
+        cmd_name = getattr(interaction.command, "name", None) or interaction.data.get("name")
+        embed = EmbedBuilder.info(
+            title="💡 Command Used",
+            description=f"{interaction.user.mention} used `/{cmd_name}`",
+            guild_id=str(guild_id)
+        )
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        # Add context: channel and options used
+        if interaction.channel:
+            embed.add_field(name='Channel', value=interaction.channel.mention, inline=True)
+        options = interaction.data.get('options', [])
+        if options:
+            opts_str = '\n'.join(f"{opt['name']}: {opt.get('value')}" for opt in options)
+            embed.add_field(name='Options', value=opts_str, inline=False)
+        await channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_command(self, ctx: commands.Context):
+        """Log prefix command usage."""
+        if not ctx.guild:
+            return
+        guild_id = ctx.guild.id
+        if not self.is_event_enabled(guild_id, "command"):
+            return
+        channel_id = self.get_guild_settings(guild_id)["channel_id"]
+        if not channel_id:
+            return
+        channel = ctx.guild.get_channel(channel_id)
+        if not channel:
+            return
+        embed = EmbedBuilder.info(
+            title="💡 Command Used",
+            description=f"{ctx.author.mention} used `{ctx.command}`",
+            guild_id=str(guild_id)
+        )
+        embed.set_thumbnail(url=ctx.author.display_avatar.url)
+        # Add context: channel and full message content
+        if ctx.channel:
+            embed.add_field(name='Channel', value=ctx.channel.mention, inline=True)
+        embed.add_field(name='Message', value=ctx.message.content, inline=False)
+        await channel.send(embed=embed)
+
+class LoggingSelect(ui.Select):
+    """Select menu for toggling logging events."""
+    def __init__(self, cog: LoggingCog, guild_id: int):
+        self.cog = cog
+        self.guild_id = guild_id
+        options = [
+            discord.SelectOption(
+                label=label,
+                value=key,
+                emoji=emoji,
+                default=cog.is_event_enabled(guild_id, key)
+            )
+            for key, emoji, label in LoggingCog.LOGGABLE_EVENTS
+        ]
+        super().__init__(
+            placeholder="Select events to log...",
+            min_values=0,
+            max_values=len(options),
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if not await check_owner_or_admin(interaction):
+            await interaction.response.send_message(
+                embed=EmbedBuilder.error(
+                    title="✗ Access Denied",
+                    description="You need admin permissions to change logging settings."
+                ),
+                ephemeral=True
+            )
+            return
+        selected = self.values
+        for key, _, _ in LoggingCog.LOGGABLE_EVENTS:
+            self.cog.set_event_enabled(self.guild_id, key, key in selected)
+        # Refresh embed and view
+        view = LoggingEventsView(self.cog, self.guild_id)
+        settings = self.cog.get_guild_settings(self.guild_id)
+        channel_id = settings["channel_id"]
+        channel_mention = f"<#{channel_id}>" if channel_id else "*(not set)*"
+        embed = EmbedBuilder.info(
+            title="🛠️ Logging Settings",
+            description=f"• Log Channel: {channel_mention}\n• Toggle which events are logged below."
+        )
+
+        for key, emoji, label in LoggingCog.LOGGABLE_EVENTS:
+            enabled = settings["log_events"].get(key, True)
+            status = "✓ Enabled" if enabled else "✗ Disabled"
+            embed.add_field(name=f"{emoji} {label}", value=status, inline=True)
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class LoggingEventsView(ui.View):
     def __init__(self, cog: LoggingCog, guild_id: int):
         super().__init__(timeout=120)
         self.cog = cog
         self.guild_id = guild_id
-        # Add event toggle buttons
-        for key, emoji, label in LoggingCog.LOGGABLE_EVENTS:
-            enabled = self.cog.is_event_enabled(guild_id, key)
-            button = ui.Button(
-                label=label,
-                style=discord.ButtonStyle.secondary,
-                custom_id=f"toggle_{key}",
-                emoji=emoji,
-            )
-            button.callback = self.make_toggle_callback(key)
-            self.add_item(button)
+        # Add logging events dropdown
+        self.add_item(LoggingSelect(self.cog, self.guild_id))
         # Add set log channel button
         set_channel_btn = ui.Button(
             label="Set Log Channel (This Channel)",
