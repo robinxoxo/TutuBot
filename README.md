@@ -1,111 +1,104 @@
-# 🤖 TutuBot
+# Tutu Bot
 
-A feature-rich Discord bot built with discord.py that uses modern Discord features like slash commands, buttons, and embedded messages.
+Tutu Bot is a modular Discord bot designed to streamline community management for a single guild. It provides a comprehensive suite of features for events, permissions, roles, support, moderation, and more—all accessible via modern Discord slash commands and interactive UI components.
 
-## ✨ Features
+## Purpose & Philosophy
 
-TutuBot comes with several modules (cogs) that provide different functionality:
+Tutu Bot aims to:
+- Simplify server management for admins, mods, and users alike.
+- Centralize all core community features in one bot, reducing clutter.
+- Use Discord's latest UI (buttons, selects, modals) for a seamless, argument-free experience.
+- Enforce clear, consistent, and visually appealing embedded responses for all interactions.
 
-• **CogManager**: Administrative commands to load, unload, and manage bot modules
-• **FAQ**: Create and manage frequently asked questions for your server
-• **Roles**: Manage server roles and provide self-assign role capabilities
-• **Streaming**: Track and notify when members go live on streaming platforms
-• **Info**: Provides informational commands about the server and bot
-• **Events**: Handle various Discord events and automated responses
-• **Misc**: Miscellaneous utility commands
-• **GitHub**: GitHub integration for tracking repository updates and sending notifications
+## Features & Commands
 
-## 🛠️ Setup
+| Feature                | Slash Command(s)        | Description                                                                                  |
+|------------------------|------------------------|----------------------------------------------------------------------------------------------|
+| Event Scheduling       | `/events`              | Manage, create, post, and delete events with interactive buttons (admin only)                |
+| Permissions            | (internal)             | Permission checks & decorators for admin/owner-only commands                                 |
+| Role Management        | `/roles`               | Interactive role assignment/removal via dropdowns and buttons                                |
+| Info & Help            | `/botinfo`, `/serverinfo`, `/help` | Show bot/server info and a list of all commands                                  |
+| FAQ                    | `/help`                | Lists commands and answers common questions                                                  |
+| Miscellaneous          | `/purge` (admin), `/embedcolors` (admin) | Bulk delete messages, manage embed colors                             |
+| GitHub Integration     | `/github` (admin)      | Manage GitHub integration settings                                                          |
+| Giveaways              | `/giveaways` (admin)   | Create, manage, and enter giveaways                                                         |
+| Moderation & Logging   | `/logging` (admin)     | Configure logging channels/events                                                           |
+| Support Tickets        | `/support`             | Open a support ticket or get help                                                           |
+| Twitch Integration     | `/twitch` (admin)      | Manage Twitch notifications and tracked streamers                                            |
+| Streaming Notifications| `/streaming` (admin)   | Manage streaming notifications for members                                                  |
+| Cog Management         | `/load`, `/unload`, `/reload`, `/list`, `/info`, `/sync` (admin/owner) | Manage cogs and sync commands |
+
+- All commands use Discord UI components instead of optional arguments.
+- Admin/owner-only commands are permission-protected.
+
+## Interaction & Response Style
+
+- **All responses are embedded messages** with a required header emoji (e.g., ✓ for success, ✗ for error, 📚 for info).
+- Uses • for bullet points in embed descriptions and fields.
+- Buttons use ButtonStyle.secondary except destructive actions (ButtonStyle.danger).
+- Users are mentioned with @ (using `.mention`) even in ephemeral messages.
+- Errors are handled with informative embeds, following tutu-rules for emoji and formatting.
+- Test commands use the `!` prefix and are not registered as slash commands.
+
+## Getting Started
 
 ### Prerequisites
-• Python 3.8 or higher
-• Discord Bot Token
-• Discord Server with admin permissions
+
+- Python 3.8 or higher
+- `pip`
+- A Discord application token with bot permissions
 
 ### Installation
 
-1. Clone this repository:
-```bash
-git clone https://github.com/yourusername/TutuBot.git
-cd TutuBot
-```
-
+1. Clone the repository:
+   ```powershell
+   git clone https://github.com/robinxoxo/TutuBot.git
+   ```
 2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
+   ```powershell
+   cd TutuBot
+   pip install -r requirements.txt
+   ```
 3. Create a `.env` file in the root directory with the following variables:
-```
-ADMIN_TOKEN=your_discord_bot_token
-BOT_OWNER_ID=your_discord_user_id
-GUILD_ID=your_primary_server_id
-CORE_COGS=cogs.cogmanager
-GITHUB_TOKEN=your_github_api_token  # Optional but recommended
-```
+   ```env
+   ADMIN_TOKEN=<your-bot-token>
+   BOT_OWNER_ID=<your-discord-user-id>
+   GUILD_ID=<target-guild-id>
+   # Optional: comma-separated list of core cog paths
+   CORE_COGS=cogs.cogmanager
+   ```
+4. (Optional) Edit `CORE_COGS` or adjust `initial_cogs` in `main.py` to enable or disable modules.
 
-4. Start the bot:
-```bash
-python main.py
-```
+5. Start the bot:
+   ```powershell
+   python main.py
+   ```
 
-## 📝 Configuration
+## Configuration
 
-The bot uses environment variables for configuration:
+All configuration is handled via environment variables in `.env`:
 
-• `ADMIN_TOKEN`: Your Discord bot token
-• `BOT_OWNER_ID`: Discord user ID of the bot owner
-• `GUILD_ID`: Primary Discord server ID where commands should sync instantly
-• `CORE_COGS`: Comma-separated list of essential cogs that cannot be unloaded (default: cogs.cogmanager)
-• `GITHUB_TOKEN`: GitHub API token for repository monitoring (optional but recommended)
+- `ADMIN_TOKEN`: Bot token used to authenticate with Discord.
+- `BOT_OWNER_ID`: Discord user ID permitted to use owner-only commands.
+- `GUILD_ID`: Single guild where slash commands are synced.
+- `CORE_COGS`: Base list of cogs to load; additional cogs appended automatically.
 
-## 📚 Commands
+## Running Tests
 
-TutuBot uses Discord's slash commands. Here are some key commands:
+This project uses pytest:
 
-• `/sync`: Synchronize commands to your server or globally
-• `/load`: Load a cog module
-• `/unload`: Unload a non-core cog module
-• `/reload`: Reload a cog module
-• `/list`: List all available and loaded cogs
-• `/roles`: Manage and self-assign roles
-• `/github`: Configure GitHub integration and update notifications
-
-For detailed documentation on commands, see the `docs` directory.
-
-## 🧩 Adding New Cogs
-
-New functionality can be added by creating new cogs in the `cogs` directory. All cogs should:
-
-1. Import required dependencies
-2. Create a class that inherits from `commands.Cog`
-3. Include a constructor that accepts the bot instance
-4. Register slash commands using `@app_commands.command()` decorator
-5. Include a setup function to register the cog
-
-Example structure:
-```python
-def setup(bot):
-    bot.add_cog(YourCogName(bot))
+```powershell
+pytest
 ```
 
-## 🔄 GitHub Integration
+## Contributing
 
-TutuBot includes GitHub integration that:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request with clear description
 
-• Monitors repository for new commits automatically
-• Sends detailed notifications about code changes
-• Displays commit information in embedded Discord messages
-• Provides direct links to view changes on GitHub
+Please follow existing code patterns and adhere to PEP8.
 
-To configure:
-1. Set your `GITHUB_TOKEN` in the .env file (optional but recommended)
-2. Use the `/github` command to set up an update channel
+## License
 
-## 📜 License
-
-[MIT License](LICENSE)
-
-## 🙏 Acknowledgements
-
-Built with [discord.py](https://github.com/Rapptz/discord.py) 
+This project is released under the MIT License. See `LICENSE` file for details.

@@ -464,8 +464,6 @@ class LoggingCog(commands.Cog, name="Logging"):
             changes.append(f" Icon changed.")
         if before.owner_id != after.owner_id:
             changes.append(f" Owner: <@{before.owner_id}> <@{after.owner_id}>")
-        if before.region != after.region:
-            changes.append(f" Region: `{before.region}` `{after.region}`")
         if not changes:
             return
         embed = EmbedBuilder.info(
