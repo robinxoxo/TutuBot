@@ -15,7 +15,7 @@ Tutu Bot aims to:
 | Feature                | Slash Command(s)        | Description                                                                                  |
 |------------------------|------------------------|----------------------------------------------------------------------------------------------|
 | Event Scheduling       | `/events`              | Manage, create, post, and delete events with interactive buttons (admin only)                |
-| Permissions            | (internal)             | Permission checks & decorators for admin/owner-only commands                                 |
+| Permissions            | `/permissions`           | Permission checks & decorators for admin/owner-only commands                                 |
 | Role Management        | `/roles`               | Interactive role assignment/removal via dropdowns and buttons                                |
 | Info & Help            | `/botinfo`, `/serverinfo`, `/help` | Show bot/server info and a list of all commands                                  |
 | FAQ                    | `/help`                | Lists commands and answers common questions                                                  |
@@ -30,15 +30,6 @@ Tutu Bot aims to:
 
 - All commands use Discord UI components instead of optional arguments.
 - Admin/owner-only commands are permission-protected.
-
-## Interaction & Response Style
-
-- **All responses are embedded messages** with a required header emoji (e.g., ✓ for success, ✗ for error, 📚 for info).
-- Uses • for bullet points in embed descriptions and fields.
-- Buttons use ButtonStyle.secondary except destructive actions (ButtonStyle.danger).
-- Users are mentioned with @ (using `.mention`) even in ephemeral messages.
-- Errors are handled with informative embeds, following tutu-rules for emoji and formatting.
-- Test commands use the `!` prefix and are not registered as slash commands.
 
 ## Getting Started
 
@@ -64,10 +55,8 @@ Tutu Bot aims to:
    ADMIN_TOKEN=<your-bot-token>
    BOT_OWNER_ID=<your-discord-user-id>
    GUILD_ID=<target-guild-id>
-   # Optional: comma-separated list of core cog paths
-   CORE_COGS=cogs.cogmanager
    ```
-4. (Optional) Edit `CORE_COGS` or adjust `initial_cogs` in `main.py` to enable or disable modules.
+4. (Optional) Edit `initial_cogs` in `main.py` to enable or disable modules.
 
 5. Start the bot:
    ```powershell
@@ -81,7 +70,6 @@ All configuration is handled via environment variables in `.env`:
 - `ADMIN_TOKEN`: Bot token used to authenticate with Discord.
 - `BOT_OWNER_ID`: Discord user ID permitted to use owner-only commands.
 - `GUILD_ID`: Single guild where slash commands are synced.
-- `CORE_COGS`: Base list of cogs to load; additional cogs appended automatically.
 
 ## Running Tests
 

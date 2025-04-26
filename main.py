@@ -1,36 +1,29 @@
 import discord
-import os
-# import asyncio # No longer needed for running bots concurrently
 from discord.ext import commands
 from dotenv import load_dotenv
+import os
+import time
 import logging
-import time # Import time module for timestamp
-import discord.utils # Import discord.utils
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 log = logging.getLogger(__name__)
 
-# Load environment variables
+# Load and validate environment variables
 load_dotenv()
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
-BOT_OWNER_ID = os.getenv("BOT_OWNER_ID")
-CORE_COGS = os.getenv("CORE_COGS", "cogs.cogmanager").split(",")
-GUILD_ID = os.getenv("GUILD_ID", 0)  # Default to the specified guild ID
-
-# Validate variables
-if not all([ADMIN_TOKEN, BOT_OWNER_ID]):
-    raise ValueError("One or more essential environment variables (ADMIN_TOKEN, BOT_OWNER_ID) are missing.")
-
-# Ensure BOT_OWNER_ID is not None before conversion
-assert BOT_OWNER_ID is not None
-
-# Convert owner ID to int
+TOKEN = os.getenv("ADMIN_TOKEN") or os.getenv("DISCORD_TOKEN")
+owner_id_env = os.getenv("BOT_OWNER_ID")
+if not TOKEN or not owner_id_env:
+    raise ValueError("Environment variables ADMIN_TOKEN and BOT_OWNER_ID must be set.")
 try:
-    BOT_OWNER_ID_INT = int(BOT_OWNER_ID)
-    GUILD_ID_INT = int(GUILD_ID)
+    OWNER_ID = int(owner_id_env)
 except ValueError:
-     raise ValueError("BOT_OWNER_ID or GUILD_ID environment variable must be an integer.")
+    raise ValueError("BOT_OWNER_ID environment variable must be an integer.")
+guild_id_env = os.getenv("GUILD_ID", "0")
+try:
+    GUILD_ID = int(guild_id_env)
+except ValueError:
+    raise ValueError("GUILD_ID environment variable must be an integer.")
 
 class TutuBot(commands.Bot):
     """Discord bot with slash command support."""
@@ -44,53 +37,34 @@ class TutuBot(commands.Bot):
         self.launch_time = time.time()  # Record launch time
 
     async def setup_hook(self) -> None:
-        """Loads initial cogs and syncs commands to guild only."""
-        self.log.info(f"Attempting to load initial cogs: {self.initial_cogs}")
-        for cog_path in self.initial_cogs:
+        """Load extensions and sync slash commands."""
+        for ext in self.initial_cogs:
             try:
-                await self.load_extension(cog_path)
-                self.log.info(f"Successfully loaded cog: {cog_path}")
-            except Exception as e:
-                self.log.exception(f"Failed to load cog {cog_path}: {e}")
+                await self.load_extension(ext)
+                self.log.info(f"Loaded extension {ext}")
+            except Exception:
+                self.log.exception(f"Failed to load extension {ext}")
+        # Sync slash commands
+        self.log.info("Syncing application commands...")
+        if self.guild_id:
+            await self.tree.sync(guild=discord.Object(id=self.guild_id))
+        else:
+            await self.tree.sync()
+        self.log.info("Application commands synced.")
 
     async def on_message(self, message: discord.Message) -> None:
-        """Event triggered when a message is received.
-        
-        This overrides the default on_message handler to prevent automatic command processing,
-        since we're using slash commands exclusively.
-        """
-        # Make sure we have a valid message and author
-        if message.author is None or self.user is None:
-            return
-            
-        # Don't process commands from this bot
+        """Process prefix commands and ignore the bot's own messages."""
         if message.author.id == self.user.id:
             return
-            
-        # We're not using traditional command processing, so don't call process_commands
-        # Uncomment below line if you want to support both slash and traditional commands
-        # await self.process_commands(message)
-        
-        # This prevents type errors because we properly handle the message here
-        # but don't do anything with it since we're using slash commands
-        
-    async def on_ready(self):
-        """Event triggered when the bot is ready."""
-        assert self.user is not None
-        self.log.info(f'Logged in as {self.user.name} ({self.user.id})')
-        self.log.info(f'Currently in {len(self.guilds)} servers.')
-        self.log.info('------')
+        await self.process_commands(message)
 
-        # Set presence
-        try:
-            activity = discord.Activity(
-                type=discord.ActivityType.listening,
-                name="to /help"
-            )
-            await self.change_presence(status=discord.Status.online, activity=activity)
-            self.log.info("Presence set successfully.")
-        except Exception as e:
-            self.log.exception(f"Failed to set presence: {e}")
+    async def on_ready(self):
+        """Log bot readiness and set presence."""
+        self.log.info(f"Logged in as {self.user} (ID: {self.user.id})")
+        self.log.info(f"Connected to {len(self.guilds)} guild(s). Uptime: {time.time() - self.launch_time:.2f}s")
+        activity = discord.Activity(type=discord.ActivityType.listening, name="/help")
+        await self.change_presence(status=discord.Status.online, activity=activity)
+        self.log.info("Presence set to listening to /help.")
 
 # Define intents
 intents = discord.Intents.default()
@@ -100,54 +74,39 @@ intents.message_content = True
 intents.presences = True  # Required for activity/streaming status tracking
 
 # All cogs to load at startup
-initial_cogs = CORE_COGS.copy()
-if "cogs.permissions" not in initial_cogs:
-    initial_cogs.append("cogs.permissions")
-if "cogs.roles" not in initial_cogs:
-    initial_cogs.append("cogs.roles")
-if "cogs.streaming" not in initial_cogs:
-    initial_cogs.append("cogs.streaming")
-if "cogs.info" not in initial_cogs:
-    initial_cogs.append("cogs.info")
-if "cogs.faq" not in initial_cogs:
-    initial_cogs.append("cogs.faq")
-if "cogs.events" not in initial_cogs:
-    initial_cogs.append("cogs.events")
-if "cogs.misc" not in initial_cogs:
-    initial_cogs.append("cogs.misc")
-if "cogs.github" not in initial_cogs:
-    initial_cogs.append("cogs.github")
-if "cogs.giveaways" not in initial_cogs:
-    initial_cogs.append("cogs.giveaways")
-if "cogs.logging" not in initial_cogs:
-    initial_cogs.append("cogs.logging")
-if "cogs.support" not in initial_cogs:
-    initial_cogs.append("cogs.support")
-if "cogs.twitch" not in initial_cogs:
-    initial_cogs.append("cogs.twitch")
+DEFAULT_COGS = [
+    "cogs.permissions", "cogs.roles", "cogs.info", "cogs.reminders",
+    "cogs.faq", "cogs.events", "cogs.misc", "cogs.github",
+    "cogs.giveaways", "cogs.logging", "cogs.support", "cogs.twitch"
+]
+"""
+Only core cog is cogmanager; combine with DEFAULT_COGS
+"""
+initial_cogs = ["cogs.cogmanager"] + DEFAULT_COGS
 
-# Create bot
 bot = TutuBot(
-    command_prefix="!",  # Set a prefix even if not used to prevent errors
+    command_prefix="!",  # Prefix for test commands
     intents=intents,
     initial_cogs=initial_cogs,
-    owner_id=BOT_OWNER_ID_INT,
-    guild_id=GUILD_ID_INT,
-    activity=None,
+    owner_id=OWNER_ID,
+    guild_id=GUILD_ID,
     status=discord.Status.idle
 )
 
-# Main execution
+def main():
+    """Entry point for running the bot."""
+    if not TOKEN:
+        log.critical("ADMIN_TOKEN not set. Exiting.")
+        return
+    log.info("Starting bot...")
+    try:
+        bot.run(TOKEN)
+    except discord.LoginFailure:
+        log.critical("Failed to log in: invalid token.")
+    except KeyboardInterrupt:
+        log.info("Shutdown requested. Exiting.")
+    except Exception:
+        log.exception("Unexpected error running bot.")
+
 if __name__ == "__main__":
-    if not ADMIN_TOKEN:
-        log.critical("ADMIN_TOKEN not found in environment variables. Bot cannot start.")
-    else:
-        try:
-            log.info("Starting bot...")
-            bot.run(ADMIN_TOKEN)
-        except discord.LoginFailure:
-            log.critical("Failed to log in: Improper token provided.")
-        except KeyboardInterrupt:
-            log.info("Received exit signal, shutting down...")
-        except Exception as e:
-            log.exception(f"An error occurred during bot execution: {e}")
+    main()

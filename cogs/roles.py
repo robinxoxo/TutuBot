@@ -15,6 +15,43 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# --- Helper Functions ---
+def get_category_roles(category):
+    """Return dict of role_id: role_info for a given category."""
+    return {k: v for k, v in ROLE_DEFINITIONS.items() if v["category"] == category}
+
+def get_user_role_names(user_roles):
+    """Return a list of role names (lowercased) for the provided roles."""
+    return [role.name.lower() for role in user_roles]
+
+def format_roles_display(roles, emoji_map, bullet="•"):
+    """Format a list of roles as a string with emoji and title-case, bullet style."""
+    if not roles:
+        return "None in this category"
+    # roles can be dicts or discord.Role objects
+    def get_name(role):
+        return role["name"] if isinstance(role, dict) else role.name
+    return "\n".join(f"{bullet} {emoji_map.get(get_name(role).lower(), '')} {get_name(role).title()}" for role in roles)
+
+def build_role_select_options(category_roles, user_role_names):
+    """Return list of SelectOption for a category, marking those the user has as default."""
+    options = []
+    for role_id, role_info in category_roles.items():
+        has_role = role_info["name"].lower() in user_role_names
+        description = role_info["description"] or "Click to toggle role"
+        display_name = role_info["name"].lower().title()
+        role_value = role_info["name"].lower()
+        options.append(
+            discord.SelectOption(
+                label=display_name,
+                emoji=role_info["emoji"],
+                description=description,
+                value=role_value,
+                default=has_role
+            )
+        )
+    return options
+
 class RoleCategorySelect(ui.Select):
     """Select menu for choosing a role category."""
     
@@ -51,17 +88,16 @@ class RoleCategorySelect(ui.Select):
         )
         
         # Count how many roles the user has in this category
-        category_roles = {k: v for k, v in ROLE_DEFINITIONS.items() if v["category"] == selected_category}
-        user_role_names = [role.name.lower() for role in interaction.user.roles]
-        
+        category_roles = get_category_roles(selected_category)
+        user_role_names = get_user_role_names(interaction.user.roles)
         user_has_roles = [role for role_id, role in category_roles.items() if role["name"].lower() in user_role_names]
-        
-        if user_has_roles:
-            # Display roles with title case for better readability
-            role_list = ", ".join(f"{role['emoji']} {role['name'].lower().title()}" for role in user_has_roles)
-            embed.add_field(name="Your Current Roles", value=role_list, inline=False)
-        else:
-            embed.add_field(name="Your Current Roles", value="None in this category", inline=False)
+
+        emoji_map = {info["name"].lower(): info["emoji"] for info in category_roles.values()}
+        embed.add_field(
+            name="Your Current Roles",
+            value=format_roles_display(user_has_roles, emoji_map, bullet=""),
+            inline=False
+        )
         
         await interaction.response.edit_message(
             content=None,
@@ -76,37 +112,9 @@ class RolesSelect(ui.Select):
         self.category = category
         
         # Filter roles for this category
-        category_roles = {k: v for k, v in ROLE_DEFINITIONS.items() if v["category"] == category}
-        
-        # Create options
-        options = []
-        # Make case-insensitive role name check
-        user_role_names = [role.name.lower() for role in user_roles]
-        
-        for role_id, role_info in category_roles.items():
-            # Check if user has this role (case-insensitive)
-            has_role = role_info["name"].lower() in user_role_names
-            
-            description = role_info["description"]
-            if description:
-                description = f"{description}"
-            else:
-                description = "Click to toggle role"
-            
-            # Use title case for display but lowercase for value
-            display_name = role_info["name"].lower().title()
-            role_value = role_info["name"].lower()
-            
-            options.append(
-                discord.SelectOption(
-                    label=display_name,
-                    emoji=role_info["emoji"],
-                    description=description,
-                    value=role_value,
-                    default=has_role
-                )
-            )
-        
+        category_roles = get_category_roles(category)
+        user_role_names = get_user_role_names(user_roles)
+        options = build_role_select_options(category_roles, user_role_names)
         super().__init__(
             placeholder=f"Select roles from {category.value}...",
             min_values=0,  # Allow deselecting all
@@ -114,6 +122,13 @@ class RolesSelect(ui.Select):
             options=options
         )
         
+    def _format_roles_list(self, roles, emoji_map):
+        return format_roles_display(roles, emoji_map, bullet="•")
+
+    def _format_change_list(self, roles, prefix):
+        # Helper to format added/removed roles with prefix
+        return "\n".join(f"{prefix} {role.name.title()}" for role in roles) if roles else None
+
     async def callback(self, interaction: discord.Interaction):
         assert isinstance(interaction.user, discord.Member), "User must be a Member"
         assert interaction.guild is not None, "Guild must exist"
@@ -162,51 +177,38 @@ class RolesSelect(ui.Select):
                 await interaction.user.remove_roles(*roles_to_remove, reason="Self-removed via role menu")
                 
             # Create embed for result
-            embed = EmbedBuilder.success(
-                title=f"🏷️ {self.category.value}",
-                description="Your roles have been updated."
-            ) if (roles_to_add or roles_to_remove) else EmbedBuilder.info(
-                title=f"🏷️ {self.category.value}",
-                description="Your roles have been updated."
+            embed = (
+                EmbedBuilder.success(
+                    title=f"🏷️ {self.category.value}",
+                    description="Your roles have been updated."
+                ) if (roles_to_add or roles_to_remove) else
+                EmbedBuilder.info(
+                    title=f"🏷️ {self.category.value}",
+                    description="Your roles have been updated."
+                )
             )
-            
-            # Get updated member to ensure we have the latest roles
+
+            emoji_map = {info["name"].lower(): info["emoji"] for info in category_roles.values()}
             updated_member = await interaction.guild.fetch_member(interaction.user.id)
-            
-            # Get current roles in this category using updated member
-            current_roles = []
-            for role in updated_member.roles:
-                role_name_lower = role.name.lower()
-                for info in category_roles.values():
-                    if role_name_lower == info["name"].lower():
-                        emoji = info["emoji"]
-                        # Display in title case for better readability
-                        display_name = role.name.lower().title()
-                        current_roles.append(f"{emoji} {display_name}")
-                        break
-                    
-            # Add fields for added, removed, and current roles
+            current_roles = [role for role in updated_member.roles if role.name.lower() in emoji_map]
+
             if roles_to_add:
-                added_list = "\n".join(f"✓ {role.name.title()}" for role in roles_to_add)
+                added_list = self._format_change_list(roles_to_add, "✓")
                 embed.add_field(name="Added Roles", value=added_list, inline=True)
-                
             if roles_to_remove:
-                removed_list = "\n".join(f"✗ {role.name.title()}" for role in roles_to_remove)
+                removed_list = self._format_change_list(roles_to_remove, "✗")
                 embed.add_field(name="Removed Roles", value=removed_list, inline=True)
-                
             if missing_roles:
                 missing_list = "\n".join(f"⚠️ {role}" for role in missing_roles)
                 embed.add_field(name="Missing Roles", value=missing_list + "\n*(Admin needs to sync)*", inline=True)
-                
-            if current_roles:
-                embed.add_field(name="Your Current Roles", value="\n".join(current_roles), inline=False)
-            else:
-                embed.add_field(name="Your Current Roles", value="None in this category", inline=False)
-                
-            # Create a new view with updated defaults
+            embed.add_field(
+                name="Your Current Roles",
+                value=self._format_roles_list(current_roles, emoji_map),
+                inline=False
+            )
             view = RolesView(self.category, updated_member.roles)
             await interaction.response.edit_message(embed=embed, view=view)
-            
+
         except discord.Forbidden:
             # Create a more detailed error message about role permissions
             error_embed = EmbedBuilder.error(
