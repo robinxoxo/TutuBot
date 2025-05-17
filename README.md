@@ -36,32 +36,69 @@ Tutu Bot aims to:
 ### Prerequisites
 
 - Python 3.8 or higher
-- `pip`
-- A Discord application token with bot permissions
+- A Discord application with bot token and required permissions
+- Git (for cloning the repository)
 
 ### Installation
 
-1. Clone the repository:
+1. **Create a Discord Bot Application**:
+   - Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+   - Create a new application and add a bot user
+   - Enable necessary Privileged Gateway Intents (Server Members, Message Content, Presence)
+   - Copy your bot token for the next steps
+
+2. **Clone the repository**:
    ```powershell
    git clone https://github.com/robinxoxo/TutuBot.git
-   ```
-2. Install dependencies:
-   ```powershell
    cd TutuBot
+   ```
+
+3. **Set up a virtual environment** (recommended):
+   ```powershell
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+
+4. **Install dependencies**:
+   ```powershell
    pip install -r requirements.txt
    ```
-3. Create a `.env` file in the root directory with the following variables:
-   ```env
-   ADMIN_TOKEN=<your-bot-token>
-   BOT_OWNER_ID=<your-discord-user-id>
-   GUILD_ID=<target-guild-id>
-   ```
-4. (Optional) Edit `initial_cogs` in `main.py` to enable or disable modules.
 
-5. Start the bot:
+5. **Configure environment variables**:
+   Create a `.env` file in the root directory with the following:
+   ```env
+   ADMIN_TOKEN=your-bot-token-here
+   BOT_OWNER_ID=your-discord-user-id
+   GUILD_ID=your-target-guild-id
+   ```
+   
+   - `ADMIN_TOKEN`: Your Discord bot token
+   - `BOT_OWNER_ID`: Your Discord user ID (right-click on your name → Copy ID with developer mode enabled)
+   - `GUILD_ID`: The ID of the guild where you want to use the bot
+
+### Running the Bot
+
+1. **Start the bot**:
    ```powershell
    python main.py
    ```
+
+2. **Invite the bot to your server**:
+   - Go to OAuth2 → URL Generator in the Discord Developer Portal
+   - Select the `bot` and `applications.commands` scopes
+   - Select appropriate bot permissions
+   - Use the generated URL to invite the bot to your server
+
+3. **Using the bot**:
+   - Once the bot is running and connected, you can use `/help` to see available commands
+   - The bot will automatically register all slash commands to the guild specified in your `.env` file
+
+### Troubleshooting
+
+- If commands aren't appearing, ensure the bot has the `applications.commands` scope permission
+- Verify that all required environment variables are set correctly
+- Check the console output for any error messages
+- Make sure all required intents are enabled in the Discord Developer Portal
 
 ## Configuration
 
