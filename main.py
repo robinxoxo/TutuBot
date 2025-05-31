@@ -75,7 +75,7 @@ intents.presences = True  # Required for activity/streaming status tracking
 
 # All cogs to load at startup
 DEFAULT_COGS = [
-    "cogs.permissions", "cogs.roles", "cogs.info", "cogs.reminders",
+    "cogs.permissions", "cogs.roles", "cogs.info",
     "cogs.faq", "cogs.events", "cogs.misc", "cogs.github",
     "cogs.giveaways", "cogs.logging", "cogs.support", "cogs.twitch"
 ]

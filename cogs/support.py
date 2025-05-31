@@ -2,7 +2,7 @@ import discord
 from discord import app_commands, ui
 from discord.ext import commands
 from utils.embed_builder import EmbedBuilder
-from cogs.permissions import is_owner_or_administrator, get_allowed_admin_roles, check_owner_or_admin, get_allowed_command_roles
+from cogs.permissions import is_owner_or_administrator, get_allowed_admin_roles, check_owner_or_admin, get_allowed_command_roles, require_command_permission
 import os
 import json
 import asyncio
@@ -35,6 +35,7 @@ class SupportCog(commands.Cog, name="Support"):
         self.tickets = load_tickets()
 
     @app_commands.command(name="support", description="Get support or open a ticket.")
+    @require_command_permission("support")
     async def support_menu(self, interaction: discord.Interaction):
         embed = EmbedBuilder.info(
             title="🎫 Support Menu",

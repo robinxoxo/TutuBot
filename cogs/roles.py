@@ -6,7 +6,7 @@ import typing
 from typing import List, Dict, Optional, Any, TYPE_CHECKING
 
 from utils.role_definitions import RoleCategory, ROLE_DEFINITIONS
-from cogs.permissions import is_owner_or_administrator
+from cogs.permissions import is_owner_or_administrator, require_command_permission
 from utils.embed_builder import EmbedBuilder
 
 # Import utilities - prevent circular imports
@@ -328,6 +328,7 @@ class RoleCog(commands.Cog, name="Roles"):
         self.bot = bot
 
     @app_commands.command(name="roles", description="Manage your community roles")
+    @require_command_permission("roles")
     async def roles_command(self, interaction: discord.Interaction):
         """Displays an interactive role manager to add/remove roles.
         

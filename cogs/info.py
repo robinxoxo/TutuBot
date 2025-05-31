@@ -7,6 +7,7 @@ import platform
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from utils.embed_builder import EmbedBuilder
+from cogs.permissions import require_command_permission
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -27,6 +28,7 @@ class InfoCog(commands.Cog, name="Info"):
         self.bot = bot
     
     @app_commands.command(name="serverinfo", description="Show information about the server")
+    @require_command_permission("serverinfo")
     async def server_info(self, interaction: discord.Interaction):
         """Displays information about the current server.
         
@@ -122,6 +124,7 @@ class InfoCog(commands.Cog, name="Info"):
         
     @app_commands.command(name="userinfo", description="Show information about a user")
     @app_commands.describe(user="The user to get information about (defaults to yourself)")
+    @require_command_permission("userinfo")
     async def user_info(self, 
                          interaction: discord.Interaction, 
                          user: Optional[discord.User] = None):
@@ -255,6 +258,7 @@ class InfoCog(commands.Cog, name="Info"):
     
     @app_commands.command(name="avatar", description="Show a user's avatar")
     @app_commands.describe(user="The user whose avatar to show (defaults to yourself)")
+    @require_command_permission("avatar")
     async def avatar(self, 
                       interaction: discord.Interaction, 
                       user: Optional[discord.User] = None):
@@ -313,6 +317,7 @@ class InfoCog(commands.Cog, name="Info"):
     
     @app_commands.command(name="roleinfo", description="Show information about a role")
     @app_commands.describe(role="The role to get information about")
+    @require_command_permission("roleinfo")
     async def role_info(self, interaction: discord.Interaction, role: discord.Role):
         """Displays information about a role.
         
@@ -415,6 +420,7 @@ class InfoCog(commands.Cog, name="Info"):
         await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @app_commands.command(name="botinfo", description="Show information about the bot")
+    @require_command_permission("botinfo")
     async def show_bot_info(self, interaction: discord.Interaction):
         """Displays information about the bot.
         

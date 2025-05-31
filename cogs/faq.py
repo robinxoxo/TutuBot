@@ -5,7 +5,7 @@ import logging
 import typing
 from typing import TYPE_CHECKING
 from utils.embed_builder import EmbedBuilder
-from cogs.permissions import user_has_admin_role
+from cogs.permissions import user_has_admin_role, require_command_permission
 
 # For type hinting only
 if typing.TYPE_CHECKING:
@@ -27,6 +27,7 @@ class FaqCog(commands.Cog, name="FAQ"):
 
     # --- Help Command ---
     @app_commands.command(name="help", description="Shows information about available commands.")
+    @require_command_permission("help")
     async def help_command(self, interaction: discord.Interaction):
         """Displays a list of available commands and their descriptions.
         

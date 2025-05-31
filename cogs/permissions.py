@@ -61,6 +61,77 @@ def user_has_admin_role(member: discord.Member, command: Optional[str] = None) -
     member_role_ids = [str(role.id) for role in member.roles]
     return any(role_id in allowed_roles for role_id in member_role_ids)
 
+def user_has_command_permission(member: discord.Member, command: str) -> bool:
+    """Check if a user has permission to use a specific normal command.
+    
+    Args:
+        member: The Discord member to check
+        command: The command name to check permissions for
+        
+    Returns:
+        bool: True if the user can use the command, False otherwise
+    """
+    # Administrators can always use commands
+    if member.guild_permissions.administrator:
+        return True
+    
+    # Check if there are any custom permissions set for this command
+    allowed_roles = get_allowed_command_roles(member.guild.id, command)
+    
+    # If no custom permissions are set, default to allowing @everyone
+    if not allowed_roles:
+        return True
+    
+    # Check if user has any of the allowed roles
+    member_role_ids = [str(role.id) for role in member.roles]
+    return any(role_id in allowed_roles for role_id in member_role_ids)
+
+def require_command_permission(command_name: str):
+    """A decorator that checks if the user has permission to use a specific normal command."""
+    def decorator(func):
+        async def predicate(interaction: discord.Interaction) -> bool:
+            # Guild-only check
+            if not interaction.guild or not isinstance(interaction.user, discord.Member):
+                return False
+            
+            # Bot owner can always use commands
+            bot = cast('TutuBot', interaction.client)
+            if hasattr(bot, 'owner_id') and interaction.user.id == bot.owner_id:
+                return True
+            
+            # Check command permission
+            return user_has_command_permission(interaction.user, command_name)
+        
+        return app_commands.check(predicate)(func)
+    return decorator
+
+async def command_permission_check_with_response(interaction: discord.Interaction, command_name: str) -> bool:
+    """Check command permission and send error response if denied."""
+    if not interaction.guild or not isinstance(interaction.user, discord.Member):
+        embed = EmbedBuilder.error(
+            title="✗ Error",
+            description="This command can only be used in a server.",
+            guild_id=str(interaction.guild_id) if interaction.guild else None
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return False
+    
+    # Bot owner can always use commands
+    bot = cast('TutuBot', interaction.client)
+    if hasattr(bot, 'owner_id') and interaction.user.id == bot.owner_id:
+        return True
+    
+    if user_has_command_permission(interaction.user, command_name):
+        return True
+    
+    embed = EmbedBuilder.error(
+        title="✗ Access Denied",
+        description="You don't have permission to use this command. Contact an administrator if you believe this is an error.",
+        guild_id=str(interaction.guild_id) if interaction.guild else None
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+    return False
+
 def is_owner_or_administrator(command_name: Optional[str] = None):
     """A decorator that checks if the user is the bot owner, has administrator permissions, or an allowed admin role (global or per-command)."""
     def decorator(func):
@@ -150,26 +221,51 @@ class PermissionsCog(commands.Cog, name="Permissions"):
         self.save_permissions(data)
 
     def get_command_list(self, bot):
-        # Return a list of (command_name, description)
-        commands = [("global", "Global (all admin commands)")]
-        # Only include commands with [Admin] in their description
+        # Return a list of (command_name, description, is_admin)
+        commands = [("global", "Global (all admin commands)", True)]
+        
+        # Get all commands from the bot tree
+        all_commands = []
         for cog in bot.cogs.values():
             for cmd in getattr(cog, "get_app_commands", lambda: [])():
-                if cmd.description and "[Admin]" in cmd.description:
-                    commands.append((cmd.name, cmd.description or cmd.name))
+                all_commands.append(cmd)
+        
         # Fallback: if no get_app_commands, use bot tree
-        if len(commands) == 1:
+        if not all_commands:
+            all_commands = list(bot.tree.get_commands())
+        
+        # Sort commands by type (admin first, then normal) and then alphabetically
+        admin_commands = []
+        normal_commands = []
+        
+        for cmd in all_commands:
+            description = cmd.description or cmd.name
+            if "[Admin]" in description:
+                admin_commands.append((cmd.name, description, True))
+            else:
+                normal_commands.append((cmd.name, description, False))
+        
+        # Sort each category alphabetically
+        admin_commands.sort(key=lambda x: x[0])
+        normal_commands.sort(key=lambda x: x[0])
+        
+        # Add admin commands first
+        commands.extend(admin_commands)
+        
+        # Add normal commands
+        commands.extend(normal_commands)
+        
+        # Ensure /support is included as an admin command if not already present
+        support_found = any(c[0] == "support" for c in commands)
+        if not support_found:
             for cmd in bot.tree.get_commands():
-                if cmd.description and "[Admin]" in cmd.description:
-                    commands.append((cmd.name, cmd.description or cmd.name))
-        # Ensure /support is included as an admin command
-        for cmd in bot.tree.get_commands():
-            if cmd.name == "support":
-                if not any(c[0] == "support" for c in commands):
-                    commands.append((cmd.name, cmd.description or cmd.name))
+                if cmd.name == "support":
+                    commands.append((cmd.name, cmd.description or cmd.name, True))
+                    break
+        
         return commands
 
-    @app_commands.command(name="permissions", description="[Admin] Manage roles that can use admin commands.")
+    @app_commands.command(name="permissions", description="[Admin] Manage roles that can use specific commands.")
     @is_owner_or_guild_admin()
     async def permissions_menu(self, interaction: discord.Interaction):
         if not interaction.guild:
@@ -206,7 +302,7 @@ class PermissionsCommandSelectView(ui.View):
         allowed_roles = [self.guild.get_role(int(rid)) for rid in allowed_role_ids if self.guild.get_role(int(rid))]
         embed = EmbedBuilder.info(
             title="🔐 Permissions Management",
-            description="Select a command and then select roles to allow them to use that command.\n• Note: Only the top 25 roles by position are shown here.\n• Bot owner and administrators can use all commands."
+            description="Select a command and then select roles to allow them to use that command.\n• **Admin commands** (🛡️): Default access = administrators only\n• **Normal commands** (👤): Default access = everyone\n• Note: Only the top 25 roles by position are shown here.\n• Bot owner and administrators can always use all commands."
         )
         if self.selected_command == "global":
             embed.add_field(
@@ -239,15 +335,35 @@ class PermissionsCommandSelectView(ui.View):
 
 class PermissionsCommandSelect(ui.Select):
     def __init__(self, view: PermissionsCommandSelectView, commands, selected_command):
-        options = [
-            discord.SelectOption(
-                label=f"/{name}",
-                value=name,
-                default=(name == selected_command)
-            ) for name, desc in commands
-        ]
+        options = []
+        
+        # Group commands by type for better organization
+        for name, desc, is_admin in commands:
+            if name == "global":
+                # Special case for global
+                options.append(discord.SelectOption(
+                    label="Global (All Admin Commands)",
+                    value=name,
+                    description="Set permissions for all admin commands",
+                    emoji="🌐",
+                    default=(name == selected_command)
+                ))
+            else:
+                # Regular command
+                emoji = "🛡️" if is_admin else "👤"
+                command_type = "Admin" if is_admin else "Normal"
+                truncated_desc = (desc[:97] + "...") if len(desc) > 100 else desc
+                
+                options.append(discord.SelectOption(
+                    label=f"/{name}",
+                    value=name,
+                    description=f"[{command_type}] {truncated_desc}",
+                    emoji=emoji,
+                    default=(name == selected_command)
+                ))
+        
         super().__init__(
-            placeholder="Select command (or Global)...",
+            placeholder="Select command to manage permissions...",
             min_values=1,
             max_values=1,
             options=options
@@ -281,7 +397,7 @@ class PermissionsRoleSelect(ui.Select):
                 default=(str(role.id) in allowed_role_ids)
             ))
         super().__init__(
-            placeholder="Select roles to allow as admin...",
+            placeholder="Select roles to allow for this command...",
             min_values=0,
             max_values=len(options),
             options=options
